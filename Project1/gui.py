@@ -174,6 +174,19 @@ class DisplayApp:
 
     def handleMouseButton2(self, event):
         self.baseClick = (event.x, event.y)
+
+        dx = 3
+        rgb = "#%02x%02x%02x" % (random.randint(0, 255), 
+                                 random.randint(0, 255), 
+                                 random.randint(0, 255) )
+        oval = self.canvas.create_oval( event.x - dx,
+                                        event.y - dx, 
+                                        event.x + dx, 
+                                        event.y + dx,
+                                        fill = rgb,
+                                        outline='')
+        self.objects.append( oval )
+
         print( 'handle mouse button 2: %d %d' % (event.x, event.y))
 
     def handleMouseButton3(self, event):
@@ -184,6 +197,15 @@ class DisplayApp:
     def handleMouseButton1Motion(self, event):
         # calculate the difference
         diff = ( event.x - self.baseClick[0], event.y - self.baseClick[1] )
+
+        # update objects location 
+        for obj in self.objects:
+            loc = self.canvas.coords(obj) 
+            self.canvas.coords(obj, 
+                                loc[0] + diff[0],
+                                loc[1] + diff[1], 
+                                loc[2] + diff[0], 
+                                loc[3] + diff[1] )
 
         # update base click
         self.baseClick = ( event.x, event.y )
