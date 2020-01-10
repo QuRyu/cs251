@@ -8,6 +8,8 @@ import tkinter as tk
 import math
 import random
 
+ListBoxSelections = ["Random", "Gaussian"]
+
 # create a class to build and manage the display
 class DisplayApp:
 
@@ -126,15 +128,23 @@ class DisplayApp:
                                         "black", "blue", "red", "green" ) # can add a command to the menu
         colorMenu.pack(side=tk.TOP)
 
-        # make a button in the frame
-        # and tell it to call the handleButton method when it is pressed.
+        # "Update Color" button 
         button = tk.Button( rightcntlframe, text="Update Color", 
                                command=self.updatePointsColor )
         button.pack(side=tk.TOP)  # default side is top
 
+	# "Random Points" button 
         button = tk.Button( rightcntlframe, text="Random Points", 
                                command=self.createRandomPoints )
         button.pack(side=tk.TOP)
+
+	# Listbox 
+        listbox = tk.Listbox(rightcntlframe, selectmode=tk.SINGLE)
+        for item in ListBoxSelections:
+            listbox.insert(tk.END, item)
+        listbox.selection_set("0")
+        listbox.pack(side=tk.TOP)
+        self.listbox = listbox
 
         return
 
@@ -222,14 +232,36 @@ class DisplayApp:
         print( 'handle button 3 motion %d %d' % (event.x, event.y) )
         
     def createRandomPoints(self, event = None):
+        # check what generation mode is selected 
+        item = list(map(int, self.listbox.curselection()))
+        if not item: 
+            print("no selection in listbox")
+            return 
+        else:
+            selection = ListBoxSelections[item[0]]
+
         # create 10 random points 
-        dx = 2 
-        for _ in range(10):
-            x = random.randint(0, self.initDx)
-            y = random.randint(0, self.initDy)
-            pt = self.canvas.create_oval( x-dx, y-dx, x+dx, y+dx,
-                                        fill=self.colorOption.get(), outline='' )
-            self.objects.append(pt)
+        dx = 3 
+        width = self.canvas.winfo_width()
+        height = self.canvas.winfo_height()
+        if selection == "Random":
+            for _ in range(10): 
+                x = random.randint(0, width)
+                y = random.randint(0, height)
+                pt = self.canvas.create_oval( x-dx, y-dx, x+dx, y+dx,
+                                            fill=self.colorOption.get(), outline='' )
+                self.objects.append(pt)
+        elif selection == "Gaussian":
+            width_mean = width/2
+            width_std = width/6
+            height_mean = height/2
+            height_std = height/6
+            for _ in range(10): 
+                x = random.gauss(width_mean, width_std)
+                y = random.gauss(height_mean, height_std)
+                pt = self.canvas.create_oval( x-dx, y-dx, x+dx, y+dx,
+                                            fill=self.colorOption.get(), outline='' )
+                self.objects.append(pt)
 
     def main(self):
         print( 'Entering main loop')
