@@ -359,17 +359,17 @@ class DisplayApp:
     # and the mouse is moving. Or if the control key is held down while
     # a person moves their finger on the track pad.
     def handleMouseButton2Motion(self, event):
-        # diff = ( event.x - self.baseClick[0], event.y - self.baseClick[1] )
-        # diff_area = abs(diff[0]) * abs(diff[1])
-        # width = self.canvas.winfo_width()
-        # height = self.canvas.winfo_height()
-        # dx = (diff_area / (width * height)) * 10
+        diff = self.baseClick[1] - event.y
+        height = self.canvas.winfo_height()
+        dx = (diff / height) * 10
 
-        # for obj in self.objects:
-            # loc = self.canvas.coords(obj)
-            # self.canvas.coords(obj, 
-                                # loc[0] - dx,
-                                # loc[1] 
+        for obj in self.objects:
+            loc = self.canvas.coords(obj)
+            self.canvas.coords(obj, 
+                                loc[0] - dx,
+                                loc[1] - dx, 
+                                loc[2] + dx, 
+                                loc[3] + dx)
 
         print( 'handle button 2 motion %d %d' % (event.x, event.y) )
 
