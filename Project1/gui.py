@@ -171,6 +171,9 @@ class DisplayApp:
         # build the controls
         self.buildControls()
 
+        # build point position frame
+        self.buildPos()
+
         # build the Canvas
         self.buildCanvas()
 
@@ -292,6 +295,15 @@ class DisplayApp:
 
         return
 
+    def buildPos(self):
+        # make a pos frame on the bottom 
+        bottomposframe = tk.Frame(self.root)
+        bottomposframe.pack(side=tk.BOTTOM, padx=2, pady=2, fill=tk.Y)
+        
+        pos_label = tk.Label(bottomposframe)
+        pos_label.pack(side=tk.TOP)
+        self.pos_label = pos_label
+
     def setBindings(self):
         # bind mouse motions to the canvas
         self.canvas.bind( '<Button-1>', self.handleMouseButton1 )
@@ -387,6 +399,14 @@ class DisplayApp:
     def handleMouseButton3Motion(self, event):
         print( 'handle button 3 motion %d %d' % (event.x, event.y) )
         
+    def handlePointPosEnter(self, event):
+        self.pos_label.configure(text = "x: {}, y: {}".format(event.x, event.y))
+
+    def handlePointPosLeave(self, event=None):
+        self.pos_label.configure(text = "")
+
+    # create random points on the canvas 
+    # the number of random points is specified by user with a dialog 
     def createRandomPoints(self, event = None):
         # check what generation mode is selected 
         item = list(map(int, self.gen_listbox.curselection()))
@@ -433,6 +453,8 @@ class DisplayApp:
             elif shape == "Square":
                 pt = self.canvas.create_rectangle( x-dx, y-dx, x+dx, y+dx,
                                             fill=self.colorOption.get(), outline='' )
+            self.canvas.tag_bind(pt, '<Enter>', self.handlePointPosEnter)
+            self.canvas.tag_bind(pt, '<Leave>', self.handlePointPosLeave)
             self.objects.append(pt)
 
     def main(self):
