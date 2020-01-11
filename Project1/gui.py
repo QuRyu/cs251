@@ -8,7 +8,8 @@ import tkinter as tk
 import math
 import random
 
-ListBoxSelections = ["Random", "Gaussian"]
+ListBox_Gen_Selections = ["Random", "Gaussian"]
+ListBox_Shape_Selections = ["Circle", "Square"]
 
 # Modal dialog template 
 class Dialog(tk.Toplevel):
@@ -271,13 +272,23 @@ class DisplayApp:
                                command=self.createRandomPoints )
         button.pack(side=tk.TOP)
 
-	# Listbox 
-        listbox = tk.Listbox(rightcntlframe, selectmode=tk.SINGLE)
-        for item in ListBoxSelections:
-            listbox.insert(tk.END, item)
-        listbox.selection_set("0")
-        listbox.pack(side=tk.TOP)
-        self.listbox = listbox
+        # Listbox: generation method 
+        # gen_listbox = tk.Listbox(rightcntlframe, selectmode=tk.SINGLE)
+        gen_listbox = tk.Listbox(rightcntlframe, exportselection=0)
+        for item in ListBox_Gen_Selections:
+            gen_listbox.insert(tk.END, item)
+        gen_listbox.selection_set("0")
+        gen_listbox.pack(side=tk.TOP)
+        self.gen_listbox = gen_listbox
+
+        # Listbox: shape 
+        # shape_listbox = tk.Listbox(rightcntlframe, selectmode=tk.SINGLE)
+        shape_listbox = tk.Listbox(rightcntlframe, exportselection=0)
+        for item in ListBox_Shape_Selections:
+            shape_listbox.insert(tk.END, item)
+        shape_listbox.selection_set("0")
+        shape_listbox.pack(side=tk.TOP)
+        self.shape_listbox = shape_listbox
 
         return
 
@@ -378,12 +389,20 @@ class DisplayApp:
         
     def createRandomPoints(self, event = None):
         # check what generation mode is selected 
-        item = list(map(int, self.listbox.curselection()))
+        item = list(map(int, self.gen_listbox.curselection()))
         if not item: 
-            print("no selection in listbox")
+            print("no generation method selected")
             return 
         else:
-            selection = ListBoxSelections[item[0]]
+            method = ListBox_Gen_Selections[item[0]]
+
+        # check what shape is selected 
+        item = list(map(int, self.shape_listbox.curselection()))
+        if not item:
+            print("no shape selected")
+            return
+        else:
+            shape = ListBox_Shape_Selections[item[0]]
 
         # ask user for number of random points 
         dialog = RandomPointDialog(self.root, 1, 30, "Number of Random Points")
@@ -396,24 +415,25 @@ class DisplayApp:
         dx = 3 
         width = self.canvas.winfo_width()
         height = self.canvas.winfo_height()
-        if selection == "Random":
-            for _ in range(N): 
+        width_mean = width/2
+        width_std = width/6
+        height_mean = height/2
+        height_std = height/6
+        for _ in range(N): 
+            if method == "Random":
                 x = random.randint(0, width)
                 y = random.randint(0, height)
-                pt = self.canvas.create_oval( x-dx, y-dx, x+dx, y+dx,
-                                            fill=self.colorOption.get(), outline='' )
-                self.objects.append(pt)
-        elif selection == "Gaussian":
-            width_mean = width/2
-            width_std = width/6
-            height_mean = height/2
-            height_std = height/6
-            for _ in range(N): 
+            elif method == "Gaussian":
                 x = random.gauss(width_mean, width_std)
                 y = random.gauss(height_mean, height_std)
+
+            if shape == "Circle":
                 pt = self.canvas.create_oval( x-dx, y-dx, x+dx, y+dx,
                                             fill=self.colorOption.get(), outline='' )
-                self.objects.append(pt)
+            elif shape == "Square":
+                pt = self.canvas.create_rectangle( x-dx, y-dx, x+dx, y+dx,
+                                            fill=self.colorOption.get(), outline='' )
+            self.objects.append(pt)
 
     def main(self):
         print( 'Entering main loop')
