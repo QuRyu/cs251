@@ -10,6 +10,139 @@ import random
 
 ListBoxSelections = ["Random", "Gaussian"]
 
+# Modal dialog template 
+class Dialog(tk.Toplevel):
+    def __init__(self, parent, title = None):
+
+        tk.Toplevel.__init__(self, parent)
+        self.transient(parent)
+
+        if title:
+            self.title(title)
+
+        self.parent = parent
+
+        self.result = None
+
+        body = tk.Frame(self)
+        self.initial_focus = self.body(body)
+        body.pack(padx=5, pady=5)
+
+        self.buttonbox()
+
+        self.grab_set()
+
+        if not self.initial_focus:
+            self.initial_focus = self
+
+        self.protocol("WM_DELETE_WINDOW", self.cancel)
+
+        self.geometry("+%d+%d" % (parent.winfo_rootx()+50,
+                                  parent.winfo_rooty()+50))
+
+        self.initial_focus.focus_set()
+
+        self.wait_window(self)
+
+    #
+    # construction hooks
+
+    def body(self, master):
+        # create dialog body.  return widget that should have
+        # initial focus.  this method should be overridden
+
+        pass
+
+    def buttonbox(self):
+        # add standard button box. override if you don't want the
+        # standard buttons
+
+        box = tk.Frame(self)
+
+        w = tk.Button(box, text="OK", width=10, command=self.ok, default=tk.ACTIVE)
+        w.pack(side=tk.LEFT, padx=5, pady=5)
+        w = tk.Button(box, text="Cancel", width=10, command=self.cancel)
+        w.pack(side=tk.LEFT, padx=5, pady=5)
+
+        self.bind("<Return>", self.ok)
+        self.bind("<Escape>", self.cancel)
+
+        box.pack()
+
+    #
+    # standard button semantics
+
+    def ok(self, event=None):
+
+        if not self.validate():
+            self.initial_focus.focus_set() # put focus back
+            return
+
+        self.withdraw()
+        self.update_idletasks()
+
+        self.apply()
+
+        self.cancel()
+
+    def cancel(self, event=None):
+        # put focus back to the parent window
+        self.parent.focus_set()
+        self.destroy()
+
+    #
+    # command hooks
+
+    def validate(self):
+
+        return 1 # override
+
+    def apply(self):
+
+        pass # override
+
+class RandomPointDialog(Dialog): 
+    def __init__(self, parent, lower, upper, title = None):
+        self.lower = lower 
+        self.upper = upper 
+        self.cancelled = True 
+        self.numPoints = min 
+        super().__init__(parent, title)
+
+    def body(self, master):
+        v = tk.StringVar()
+        v.set("10")
+        widget = tk.Entry(master, textvariable=v)
+        widget.pack()
+
+        widget.focus_set()
+        widget.select_range(0, tk.END)
+	
+        self.text = v 
+
+    def validate(self):
+        s = self.text.get()
+        try:
+            v = int(s) 
+        except TypeError:
+            return False 
+
+        if v < self.lower or v > self.upper:
+            return False 
+        else:
+            self.numPoints = v 
+            return True 
+
+    def apply(self):
+        self.cancelled = False 
+
+    def userCancelled(self):
+        return self.cancelled
+
+    def getNumPoints(self):
+        return self.numPoints
+
+
 # create a class to build and manage the display
 class DisplayApp:
 
@@ -226,6 +359,18 @@ class DisplayApp:
     # and the mouse is moving. Or if the control key is held down while
     # a person moves their finger on the track pad.
     def handleMouseButton2Motion(self, event):
+        # diff = ( event.x - self.baseClick[0], event.y - self.baseClick[1] )
+        # diff_area = abs(diff[0]) * abs(diff[1])
+        # width = self.canvas.winfo_width()
+        # height = self.canvas.winfo_height()
+        # dx = (diff_area / (width * height)) * 10
+
+        # for obj in self.objects:
+            # loc = self.canvas.coords(obj)
+            # self.canvas.coords(obj, 
+                                # loc[0] - dx,
+                                # loc[1] 
+
         print( 'handle button 2 motion %d %d' % (event.x, event.y) )
 
     def handleMouseButton3Motion(self, event):
@@ -240,12 +385,19 @@ class DisplayApp:
         else:
             selection = ListBoxSelections[item[0]]
 
-        # create 10 random points 
+        # ask user for number of random points 
+        dialog = RandomPointDialog(self.root, 1, 30, "Number of Random Points")
+        if dialog.userCancelled():
+            return 
+        N = dialog.getNumPoints()
+
+
+        # create random points 
         dx = 3 
         width = self.canvas.winfo_width()
         height = self.canvas.winfo_height()
         if selection == "Random":
-            for _ in range(10): 
+            for _ in range(N): 
                 x = random.randint(0, width)
                 y = random.randint(0, height)
                 pt = self.canvas.create_oval( x-dx, y-dx, x+dx, y+dx,
@@ -256,7 +408,7 @@ class DisplayApp:
             width_std = width/6
             height_mean = height/2
             height_std = height/6
-            for _ in range(10): 
+            for _ in range(N): 
                 x = random.gauss(width_mean, width_std)
                 y = random.gauss(height_mean, height_std)
                 pt = self.canvas.create_oval( x-dx, y-dx, x+dx, y+dx,
