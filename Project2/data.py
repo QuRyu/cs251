@@ -2,8 +2,9 @@
 # Spring 2020 
 
 import csv  
-import numpy 
+import numpy as np
 import string 
+from enum import Enum 
 
 Types = ['numeric', 'string', 'enum', 'date']
 
@@ -23,6 +24,10 @@ class ConversionError(Exception):
         self.col = col 
         self.value = value
         self.error = error 
+
+class DataType(Enum):
+    Numeric = 1 
+    NonNumeric = 2 
 
 # Parses csv files following rules specified at 
 # http://cs.colby.edu/courses/S19/cs251-labs/labs/lab02/
@@ -57,25 +62,38 @@ class Data:
 
     # returns the number of points/rows in the data set
     def get_num_points(self):
-        return self.data.shape[0]
+        return self.nmc_data.shape[0]
 
     # returns the specified row as a NumPy matrix
     def get_row(self, rowIndex):
-        return self.data[rowIndex]
+        return np.concatenate((self.nmc_data[rowIndex], self.nnmc_data[rowIndex]), axis=1)
+
+    # def get_cols(self, headers, rows = None): 
+        # # check headers are defined 
+
+        # for header in headers:
+            # if header not in self.header2col:
+                # raise ValueError("header {} is not defined".format(header)) 
+        
+        # cols = [] 
+        # for header in headers: 
+            # col = self.data[:, self.header2col[header]]
+            # cols.append(col)
+        
+        # return np.hstack(cols)
+
 
     # returns the specified value in the give column
     def get_value(self, header, rowIndex):
-        col = self.header2col[header]
-        return self.data[rowIndex, col]
+        (datatype, col) = self.header2col[header]
+        if datatype is DataType.Numeric:
+            return self.nmc_data[rowIndex, col]
+        else:
+            return self.nnmc_data[rowIndex, col]
 
     def _read_headers(self, headers):
         headers = list(map(lambda s: s.strip(), headers))
         self.headers = headers
-
-        self.header2col = {}
-        for i, header in enumerate(headers):
-            self.header2col[header] = i 
-
 
     def _read_types(self, types):
         # check number of dimensions
@@ -87,19 +105,33 @@ class Data:
         for t in types:
           if t not in Types:
               raise TypeError(t)
+        self.types = types 
 
-        self.types = types
+        
+        self.header2col = {}
+        nmc_idx = 0  # numeric data index  
+        nnmc_idx = 0 # non-numeric data index 
+        for i, header in enumerate(self.headers):
+            if types[i] == 'numeric':
+                self.header2col[header] = (DataType.Numeric, nmc_idx)
+                nmc_idx += 1
+            else:
+                self.header2col[header] = (DataType.NonNumeric, nnmc_idx)
+                nnmc_idx += 1 
 
     def _read_content(self, csv_reader):
-        data = []
+        nmc_data = []  # numeric data 
+        nnmc_data = [] # non-numeric data 
         N = self.get_num_dimensions()
+
         for line, values in enumerate(csv_reader):
             # check if there are enough values 
             if len(values) != N:
                 raise DimensionError(line, values,
                         'Data on line {} does not have the right dimension'.format(line))
 
-            d = [] 
+            nmc_d = [] 
+            nnmc_d = [] 
             for i, item in enumerate(values):
                 if self.types[i] == 'numeric':
                     # handle data omission 
@@ -111,15 +143,17 @@ class Data:
                         pass 
 
                     try: 
-                        d.append(float(item))
+                        nmc_d.append(float(item))
                     except (ValueError, OverflowError) as e: 
                         raise ConversionError(line, i+1, item, e)
                 else:
                     # TODO: for now, ignore error checking for string, enum and date 
-                    d.append(item)
-            data.append(d) 
+                    nnmc_d.append(item)
+            nmc_data.append(nmc_d) 
+            nnmc_data.append(nnmc_d)
 
-        self.data = numpy.matrix(data)
+        self.nmc_data = np.matrix(nmc_data)
+        self.nnmc_data = np.matrix(nnmc_data)
 
     def __str__(self):
         str_list = []
