@@ -103,16 +103,17 @@ class Dialog(tk.Toplevel):
         pass # override
 
 class RandomPointDialog(Dialog): 
-    def __init__(self, parent, lower, upper, title = None):
+    def __init__(self, parent, lower, upper, default, title = None):
         self.lower = lower 
         self.upper = upper 
+        self.default = default
         self.cancelled = True 
         self.numPoints = min 
         super().__init__(parent, title)
 
     def body(self, master):
         v = tk.StringVar()
-        v.set("10")
+        v.set(str(self.default))
         widget = tk.Entry(master, textvariable=v)
         widget.pack()
 
@@ -155,6 +156,9 @@ class DisplayApp:
         # width and height of the window
         self.initDx = width
         self.initDy = height
+
+        # Carry-on value of number of random points the user chooses to generate 
+        self.last_N = 10
 
         # set up the geometry for the window
         self.root.geometry( "%dx%d+50+30" % (self.initDx, self.initDy) )
@@ -437,10 +441,11 @@ class DisplayApp:
             shape = ListBox_Shape_Selections[item[0]]
 
         # ask user for number of random points 
-        dialog = RandomPointDialog(self.root, 1, 30, "Number of Random Points")
+        dialog = RandomPointDialog(self.root, 1, 30, self.last_N, "Number of Random Points")
         if dialog.userCancelled():
             return 
         N = dialog.getNumPoints()
+        self.last_N = N 
 
 
         # create random points 
