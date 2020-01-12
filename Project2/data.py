@@ -68,19 +68,30 @@ class Data:
     def get_row(self, rowIndex):
         return np.concatenate((self.nmc_data[rowIndex], self.nnmc_data[rowIndex]), axis=1)
 
-    # def get_cols(self, headers, rows = None): 
-        # # check headers are defined 
-
-        # for header in headers:
-            # if header not in self.header2col:
-                # raise ValueError("header {} is not defined".format(header)) 
+    # returns cols specified by headers as a Numpy matrix 
+    # optionally the user can specify range of rows to return 
+    def get_cols(self, headers, rows = []): 
+        # check headers are defined 
+        for header in headers:
+            if header not in self.header2col:
+                raise ValueError("header {} is not defined".format(header)) 
         
-        # cols = [] 
-        # for header in headers: 
-            # col = self.data[:, self.header2col[header]]
-            # cols.append(col)
+        cols = [] 
+        for header in headers: 
+            (datatype, idx) = self.header2col[header]
+            if datatype is DataType.Numeric:
+                if not rows: 
+                    col = self.nmc_data[:, idx]
+                else:
+                    col = self.nmc_data[rows, idx]
+            else:
+                if not rows: 
+                    col = self.nnmc_data[:, idx]
+                else:
+                    col = self.nnmc_data[rows, idx]
+            cols.append(col)
         
-        # return np.hstack(cols)
+        return np.hstack(cols)
 
 
     # returns the specified value in the give column
