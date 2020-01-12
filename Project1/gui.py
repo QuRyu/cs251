@@ -399,11 +399,23 @@ class DisplayApp:
     def handleMouseButton3Motion(self, event):
         print( 'handle button 3 motion %d %d' % (event.x, event.y) )
         
-    def handlePointPosEnter(self, event):
-        self.pos_label.configure(text = "x: {}, y: {}".format(event.x, event.y))
+    # Display the position of the point mouse is hovering over 
+    def handlePointHoverEnter(self, event = None):
+        if self.canvas.find_withtag(tk.CURRENT):
+            item = self.canvas.find_withtag(tk.CURRENT)[0]
+            loc = self.canvas.coords(item)
+            self.pos_label.configure(text = "x: {}, y: {}".format(loc[0], loc[1]))
 
-    def handlePointPosLeave(self, event=None):
+    # Delete position text once the mouse leaves a point 
+    def handlePointHoverLeave(self, event = None):
         self.pos_label.configure(text = "")
+
+    # Shift-Control-Button deletes the point underneath the mouse 
+    def handlePointDelete(self, event = None):
+        if self.canvas.find_withtag(tk.CURRENT):
+            item = self.canvas.find_withtag(tk.CURRENT)[0]
+            self.canvas.delete(item)
+            self.objects.remove(item)
 
     # create random points on the canvas 
     # the number of random points is specified by user with a dialog 
@@ -453,8 +465,9 @@ class DisplayApp:
             elif shape == "Square":
                 pt = self.canvas.create_rectangle( x-dx, y-dx, x+dx, y+dx,
                                             fill=self.colorOption.get(), outline='' )
-            self.canvas.tag_bind(pt, '<Enter>', self.handlePointPosEnter)
-            self.canvas.tag_bind(pt, '<Leave>', self.handlePointPosLeave)
+            self.canvas.tag_bind(pt, '<Enter>', self.handlePointHoverEnter) 
+            self.canvas.tag_bind(pt, '<Leave>', self.handlePointHoverLeave)
+            self.canvas.tag_bind(pt, '<Shift-Control-Button-1>', self.handlePointDelete)
             self.objects.append(pt)
 
     def main(self):
