@@ -329,6 +329,7 @@ class DisplayApp:
         for obj in self.objects:
             self.canvas.delete(obj)
         self.objects = [] 
+        self.canvas.update_idletasks()
 
     def updatePointsColor(self):
         for obj in self.objects:
