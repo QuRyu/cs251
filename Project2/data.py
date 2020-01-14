@@ -8,16 +8,19 @@ from enum import Enum
 
 Types = ['numeric', 'string', 'enum', 'date']
 
+# Unsupported types other than numeric, string, enum and date 
 class TypeError(Exception):
     def __init__(self, type):
         self.type = type 
 
+# A given line of data does not have the right dimension specified by headers
 class DimensionError(Exception):
     def __init(self, line, values, message = None):
         self.line = line
         self.values = self.values
         self.message = message
 
+# Error of converting string to numeric values 
 class ConversionError(Exception):
     def __init(self, row, col, value, error):
         self.line = row
@@ -29,8 +32,14 @@ class DataType(Enum):
     Numeric = 1 
     NonNumeric = 2 
 
-# Parses csv files following rules specified at 
-# http://cs.colby.edu/courses/S19/cs251-labs/labs/lab02/
+# Parses csv files according to following rules: 
+# | The data should be in CSV format with commas separating different entries.
+# | The first row of the CSV data file should be the variable names. There must be a non-empty name for each column.
+# | The second row of the data should be the variable types: numeric, string, enum, and date. Numeric types can be either integers or floating point values; strings are arbitrary strings; enum implies there are a finite number of values but they can be strings or numbers;a date should be interpreted as a calendar date.
+# | Missing numeric data should be specified by the number -9999 in integer format. A decimal would imply an actual value.
+# | Any line that begins with a hash symbol should be ignored by the reader.
+# 
+# May throw `TypeError`, `DimensionError`, or `ConversionError` when reading data files during initialization stage. 
 class Data:
 
     # reads in a file 
