@@ -5,6 +5,7 @@ import csv
 import numpy as np
 import string 
 from enum import Enum 
+import time 
 
 Types = ['numeric', 'string', 'enum', 'date']
 
@@ -143,9 +144,10 @@ class Data:
         nmc_idx = 0  # numeric data index  
         nnmc_idx = 0 # non-numeric data index 
 
-        self.enum_dict = {} # dictionary mapping enum cols to the corresponding enum dict 
+        self.enum_dict = {} # dictionary mapping enum cols to enum dict 
+                            # which maps enum strings to numeric data 
         for i, header in enumerate(self.headers):
-            if types[i] == 'numeric':
+            if types[i] == 'numeric' or types[i] == 'date':
                 self.header2col[header] = (DataType.Numeric, nmc_idx)
                 nmc_idx += 1
             else:
@@ -187,6 +189,8 @@ class Data:
                         nmc_d.append(float(item))
                     except (ValueError, OverflowError) as e: 
                         raise ConversionError(line, i+1, item, e)
+                elif self.types[i] == 'date':
+                    nmc_d.append(self._parse_date(item))
                 else:
                     nnmc_d.append(item)
                     
@@ -200,6 +204,19 @@ class Data:
 
         self.nmc_data = np.matrix(nmc_data)
         self.nnmc_data = np.matrix(nnmc_data)
+
+    # parse date with several formats and returns the epoch time 
+    def _parse_date(self, date):
+        try:
+            return time.mktime(time.strptime(date, "%b %d, %Y")) # try format "Jan 1, 2020"
+        except:
+            try:
+                return time.mktime(time.strptime(date, "%d/%m/%Y")) # try format "1/1/2020"
+            except:
+                try:
+                    return time.mktime(time.strptime(date, "%d-%b-%Y")) # try format "1-Jan-2020"
+                except:
+                    return 0 
 
     def __str__(self):
         str_list = []
