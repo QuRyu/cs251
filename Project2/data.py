@@ -110,6 +110,17 @@ class Data:
             return self.nmc_data[rowIndex, col]
         else:
             return self.nnmc_data[rowIndex, col]
+    
+    # returns the dictionary mapping enum to numeric values  
+    def get_enum_dict(self, header):
+        # check header is present and the type is enum 
+        for i, item in enumerate(self.headers):
+            if item == header and self.types[i] == 'enum':
+                return self.enum_dict[i]
+                
+        raise ValueError("header {} not present or has wrong type".format(header))
+                
+            
 
     def _read_headers(self, headers):
         headers = list(map(lambda s: s.strip(), headers))
@@ -128,9 +139,11 @@ class Data:
         self.types = types 
 
         
-        self.header2col = {}
+        self.header2col = {} # dictionary mapping headers to corresponding cols in data 
         nmc_idx = 0  # numeric data index  
         nnmc_idx = 0 # non-numeric data index 
+
+        self.enum_dict = {} # dictionary mapping enum cols to the corresponding enum dict 
         for i, header in enumerate(self.headers):
             if types[i] == 'numeric':
                 self.header2col[header] = (DataType.Numeric, nmc_idx)
@@ -138,11 +151,19 @@ class Data:
             else:
                 self.header2col[header] = (DataType.NonNumeric, nnmc_idx)
                 nnmc_idx += 1 
+                if types[i] == 'enum':
+                    self.enum_dict[i] = {} 
 
     def _read_content(self, csv_reader):
         nmc_data = []  # numeric data 
         nnmc_data = [] # non-numeric data 
         N = self.get_num_dimensions()
+
+        enum_count = {}
+        # count #enums 
+        for i, type in enumerate(self.types):
+            if type == 'enum':
+                enum_count[i] = 0
 
         for line, values in enumerate(csv_reader):
             # check if there are enough values 
@@ -167,8 +188,13 @@ class Data:
                     except (ValueError, OverflowError) as e: 
                         raise ConversionError(line, i+1, item, e)
                 else:
-                    # TODO: for now, ignore error checking for string, enum and date 
                     nnmc_d.append(item)
+                    
+                    if self.types[i] == 'enum':
+                        if item not in self.enum_dict[i]:
+                            self.enum_dict[i][item] = enum_count[i]
+                            enum_count[i] += 1 
+                    
             nmc_data.append(nmc_d) 
             nnmc_data.append(nnmc_d)
 
