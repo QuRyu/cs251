@@ -177,20 +177,9 @@ class Data:
             nnmc_d = [] 
             for i, item in enumerate(values):
                 if self.types[i] == 'numeric':
-                    # handle data omission 
-                    try:
-                        if int(item) == -9999:
-                            d.append(0)
-                            continue 
-                    except:
-                        pass 
-
-                    try: 
-                        nmc_d.append(float(item))
-                    except (ValueError, OverflowError) as e: 
-                        raise ConversionError(line, i+1, item, e)
+                    nmc_d.append(self._parse_numeric(item, line, i))
                 elif self.types[i] == 'date':
-                    nmc_d.append(self._parse_date(item))
+                    nmc_d.append(self._parse_date(item, line, i))
                 else:
                     nnmc_d.append(item)
                     
@@ -206,7 +195,7 @@ class Data:
         self.nnmc_data = np.matrix(nnmc_data)
 
     # parse date with several formats and returns the epoch time 
-    def _parse_date(self, date):
+    def _parse_date(self, date, line, col):
         try:
             return time.mktime(time.strptime(date, "%b %d, %Y")) # try format "Jan 1, 2020"
         except:
@@ -215,8 +204,23 @@ class Data:
             except:
                 try:
                     return time.mktime(time.strptime(date, "%d-%b-%Y")) # try format "1-Jan-2020"
-                except:
-                    return 0 
+                except ValueError as e:
+                    raise ConversionError(line, col+1, date, e)
+                    
+
+    def _parse_numeric(self, num, line, col):
+        # handle data omission 
+        try:
+            if int(num) == -9999:
+                d.append(0)
+        except:
+            pass 
+
+        try: 
+            return float(num)
+        except (ValueError, OverflowError) as e: 
+            raise ConversionError(line, col+1, num, e)
+
 
     def __str__(self):
         str_list = []
