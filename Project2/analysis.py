@@ -28,6 +28,12 @@ def mean(headers, data):
 def stdev(headers, data):
     return np.std(data, axis=0)
 
+# Takes in a list of column headers and the Data object and returns a list of
+# the variance for each specified column. 
+# Works only for numeric data. 
+def variance(headers, data):
+    return np.var(data, axis=0)
+
 # Takes in a list of column headers and the Data object and returns a matrix 
 # with each column normalized so its minimum value is mapped to zero and its 
 # maximum value is mapped to 1.
