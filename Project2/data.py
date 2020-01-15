@@ -6,6 +6,9 @@ import numpy as np
 import string 
 from enum import Enum 
 import time 
+import os 
+import xml.etree.ElementTree as ET
+import pands as pd 
 
 Types = ['numeric', 'string', 'enum', 'date']
 
@@ -44,14 +47,47 @@ class DataType(Enum):
 class Data:
 
     # reads in a file 
-    def __init__(self, filename = None):
+    def __init__(self, filename = None, headers = [], types = []): 
         # declare and initialize fields 
 
         # if filename is not None 
         if filename:
-            self.read(filename)
+            name, ext = os.path.splitext(filename)
+            if ext == '.xml':
+                if not headers or not types:
+                    raise ValueError("for xml file, supply headers and types")
+                self.read_xml(filename, headers, types)
+            elif ext == '.csv':
+                self.read(filename)
 
-    def read(self, filename):
+    def read_xml(self, filename, headers, types):
+        # TODO: test this 
+        tree = ET.parse(filename)
+        root = tree.getroot()
+        get_range = lambda col: range(len(col))
+	l = [{r[i].tag:r[i].text for i in get_range(r)} for r in root]
+
+	df = pd.DataFrame.from_dict(l)
+        csv_file = '{}.csv'.format(name)
+	df.to_csv(csv_file) 
+
+        with open(csv_file, mode='r+') as f:
+            f.seek(0, 0)
+            for i in range(len(headers)-1):
+                f.write(headers[i] + ', ')
+            f.write(headers[-1])
+            f.write('\n')
+
+            for i in range(len(types)-1): 
+                f.write(types[i] + ', ')
+            f.write(types[-1])
+            f.write('\n')
+
+        self.read_csv(csv_file)
+
+        os.remove(csv_file)
+
+    def read_csv(self, filename):
         with open(filename, mode='rU') as file:
             csv_reader = csv.reader(file)
             self._read_headers(next(csv_reader))
