@@ -163,14 +163,14 @@ class Data:
             idx = 0 
             items = [] 
             for d in data:
-                items.append(d)
                 if d not in dic:
                     dic[d] = idx 
                     idx += 1 
+                items.append(dic[d])
 
-            self.nnmc_data = np.hstack((self.nnmc_data, np.matrix(items).T))
+            self.nmc_data = np.hstack((self.nmc_data, np.matrix(items).T))
             idx = self.nnmc_data.shape[1]
-            self.header2col[header] = (DataType.NonNumeric, idx-1)
+            self.header2col[header] = (DataType.Numeric, idx-1)
             self.enum_dict[len(self.headers)-1] = dic 
 
 
@@ -198,14 +198,15 @@ class Data:
         self.enum_dict = {} # dictionary mapping enum cols to enum dict 
                             # which maps enum strings to numeric data 
         for i, header in enumerate(self.headers):
-            if types[i] == 'numeric' or types[i] == 'date':
+            if not types[i] == 'string':
                 self.header2col[header] = (DataType.Numeric, nmc_idx)
                 nmc_idx += 1
+
+                if types[i] == 'enum':
+                    self.enum_dict[i] = {} 
             else:
                 self.header2col[header] = (DataType.NonNumeric, nnmc_idx)
                 nnmc_idx += 1 
-                if types[i] == 'enum':
-                    self.enum_dict[i] = {} 
 
     def _read_content(self, csv_reader):
         nmc_data = []  # numeric data 
@@ -231,13 +232,14 @@ class Data:
                     nmc_d.append(self._parse_numeric(item, line, i))
                 elif self.types[i] == 'date':
                     nmc_d.append(self._parse_date(item, line, i))
+                elif self.types[i] == 'enum':
+                    if item not in self.enum_dict[i]:
+                        self.enum_dict[i][item] = enum_count[i]
+                        enum_count[i] += 1 
+                    nmc_d.append(self.enum_dict[i][item])
                 else:
                     nnmc_d.append(item)
                     
-                    if self.types[i] == 'enum':
-                        if item not in self.enum_dict[i]:
-                            self.enum_dict[i][item] = enum_count[i]
-                            enum_count[i] += 1 
                     
             nmc_data.append(nmc_d) 
             nnmc_data.append(nnmc_d)
@@ -264,7 +266,7 @@ class Data:
         # handle data omission 
         try:
             if int(num) == -9999:
-                d.append(0)
+                return 0
         except:
             pass 
 
