@@ -112,7 +112,10 @@ class Data:
         else:
             return self.nnmc_data[rowIndex, col]
     
-    # returns the dictionary mapping enum to numeric values  
+    # returns the dictionary mapping enum to numeric values.
+    # 
+    # Errors:
+    #    ValueError if the header is not defined or does not have type `date`
     def get_enum_dict(self, header):
         # check header is present and the type is enum 
         for i, item in enumerate(self.headers):
@@ -121,7 +124,55 @@ class Data:
                 
         raise ValueError("header {} not present or has wrong type".format(header))
                 
-            
+    # add a new column to existing data 
+    # 
+    # Errors:
+    #    ValueError: header is already named, type is not defined,
+    #               or data does not have correct length 
+    #    ConversionError: data is numeric and conversion fails 
+    def add_column(self, header, type, data):
+        if header in self.headers:
+            raise ValueError("header {} is already named".format(header))
+        elif type not in Types:
+            raise ValueError("type {} is not defined".format(type))
+        elif not len(data) == self.get_num_points():
+            raise ValueError("data {} does not have right length".format(data))
+
+        self.headers.append(header)
+        self.types.append(type)
+        if not type == 'enum': 
+            items = [] 
+            for line, d in enumerate(data): 
+                if type == 'numeric':
+                    items.append(self._parse_numeric(d, line, -1))
+                elif type == 'date':
+                    items.append(self._parse_date(d, line, -1))
+                else:
+                    items.append(d)
+
+            if type == 'numeric' or type == 'date':
+                self.nmc_data = np.hstack((self.nmc_data, (np.matrix(items)).T))
+                idx = self.nmc_data.shape[1]
+                self.header2col[header] = (DataType.Numeric, idx-1)
+            else:
+                self.nnmc_data = np.hstack((self.nnmc_data, (np.matrix(items)).T))
+                idx = self.nnmc_data.shape[1]
+                self.header2col[header] = (DataType.NonNumeric, idx-1)
+        else:
+            dic = {}
+            idx = 0 
+            items = [] 
+            for d in data:
+                items.append(d)
+                if d not in dic:
+                    dic[d] = idx 
+                    idx += 1 
+
+            self.nnmc_data = np.hstack((self.nnmc_data, np.matrix(items).T))
+            idx = self.nnmc_data.shape[1]
+            self.header2col[header] = (DataType.NonNumeric, idx-1)
+            self.enum_dict[len(self.headers)-1] = dic 
+
 
     def _read_headers(self, headers):
         headers = list(map(lambda s: s.strip(), headers))
@@ -196,12 +247,13 @@ class Data:
 
     # parse date with several formats and returns the epoch time 
     def _parse_date(self, date, line, col):
+        date = date.strip()
         try:
-            return time.mktime(time.strptime(date, "%b %d, %Y")) # try format "Jan 1, 2020"
-        except:
+            return time.mktime(time.strptime(date, "%b %d %Y")) # try format "Jan 1 2020"
+        except ValueError:
             try:
                 return time.mktime(time.strptime(date, "%d/%m/%Y")) # try format "1/1/2020"
-            except:
+            except ValueError:
                 try:
                     return time.mktime(time.strptime(date, "%d-%b-%Y")) # try format "1-Jan-2020"
                 except ValueError as e:
