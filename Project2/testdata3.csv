@@ -1,0 +1,5 @@
+headers, with, spaces, in , bad, places ,test ,date
+numeric, string, numeric, string, numeric, numeric,enum, date
+1, hello,2, there,3,4,a, 1-Jan-2019
+5,no space,6,space-x,7,8,b, 1/1/2019
+9,cat,10,dog,11,12,a, Jan 1 2020
