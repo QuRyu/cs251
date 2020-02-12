@@ -100,8 +100,6 @@ class Data:
 
     def __str__(self):
         '''toString method
-        For now support only numeric data 
-
 
         Returns:
         -----------
@@ -175,7 +173,6 @@ class Data:
 
     def get_sample(self, rowInd):
         '''Gets the data sample at index `rowInd` (the `rowInd`-th sample)
-        For now return only numeric data 
 
         Returns:
         -----------
@@ -186,7 +183,6 @@ class Data:
 
     def get_header_indices(self, headers):
         '''Gets the variable (column) indices of the str variable names in `headers`.
-        For now support only numeric data 
 
         Parameters:
         -----------
