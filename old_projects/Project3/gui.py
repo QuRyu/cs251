@@ -7,6 +7,11 @@ import math
 import random
 import numpy as np
 
+def init_axes():
+    return np.matrix[[0, 1, 0, 0, 0, 0],
+                     [0, 0, 0, 1, 0, 0],
+                     [0, 0, 0, 0, 0, 1],
+                     [1, 1, 1, 1, 1, 1]]
 
 # create a class to build and manage the display
 class DisplayApp:
@@ -19,6 +24,10 @@ class DisplayApp:
         # width and height of the window
         self.initDx = width
         self.initDy = height
+
+        # axes 
+        self.axes = init_axes()
+        self.buildAxes()
 
         # set up the geometry for the window
         self.root.geometry( "%dx%d+50+30" % (self.initDx, self.initDy) )
