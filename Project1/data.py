@@ -193,10 +193,16 @@ class Data:
         Python list of nonnegative ints. shape=len(headers). The indices of the headers in `headers`
             list.
         '''
-        indices = [] 
-        for header in headers:
-            indices.append(self.header2col[header])
-        return indices
+        if bool(headers) and isinstance(headers, list) and all(isinstance(elem,
+            str) for elem in headers):
+            indices = [] 
+            for header in headers:
+                indices.append(self.header2col[header])
+            return indices
+        elif isinstance(headers, str):
+            return [self.header2col[headers]]
+        else:
+            raise ValueError(f'headers {headers} not supported')
 
     def get_all_data(self):
         '''Gets a copy of the entire dataset
@@ -209,7 +215,7 @@ class Data:
             NOTE: This should be a COPY, not the data stored here itself.
             This can be accomplished with numpy's copy function.
         '''
-        pass
+        return self.data.copy()
 
     def head(self):
         '''Return the 1st five data samples (all variables)
@@ -220,7 +226,7 @@ class Data:
         -----------
         ndarray. shape=(5, num_vars). 1st five data samples.
         '''
-        pass
+        return self.data[:4, :]
 
     def tail(self):
         '''Return the last five data samples (all variables)
@@ -231,7 +237,7 @@ class Data:
         -----------
         ndarray. shape=(5, num_vars). Last five data samples.
         '''
-        pass
+        return self.data[-5:, :]
 
     def select_data(self, headers, rows=[]):
         '''Return data samples corresponding to the variable names in `headers`.
@@ -258,7 +264,11 @@ class Data:
 
         Hint: For selecting a subset of rows from the data ndarray, check out np.ix_
         '''
-        pass
+        indices = self.get_header_indices(headers)
+        if not rows:
+            rows = range(self.get_num_samples())
+        return self.data[np.ix_(rows, indices)]
+            
 
     def _read_headers(self, headers):
         headers = list(map(lambda s: s.strip(), headers))
@@ -281,7 +291,7 @@ class Data:
 
     def _read_content(self, csv_reader):
         data = [] 
-        N = self.get_num_dims()
+        N = len(self.headers)
 
         for line, values in enumerate(csv_reader):
             # check if there are enough values 
