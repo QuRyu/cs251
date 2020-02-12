@@ -77,15 +77,15 @@ class Data:
         '''
 
         with open(filepath, mode='rU') as file:
-            try: 
+            # try: 
                 self.filepath = filepath
                 csv_reader = csv.reader(file)
                 self._read_headers(next(csv_reader))
                 self._read_types(next(csv_reader))
                 self._read_content(csv_reader)
-            except: 
-                e = sys.exc_info()[1]
-                print(str(e))
+            # except: 
+                # e = sys.exc_info()[1]
+                # print(str(e))
 
 
     def __str__(self):
@@ -119,26 +119,36 @@ class Data:
         
         return ''.join(str_list)
 
-    def get_headers(self):
+    def get_headers(self, numeric_only = True):
         '''Get method for headers
 
         Returns:
         -----------
         Python list of str.
         '''
-        return self.headers 
+        if numeric_only:
+            list = [] 
+            for (header, type) in zip(self.headers, self.types):
+                if type == 'numeric':
+                    list.append(header)
+            return list 
+        else:
+            return self.headers 
 
 
-    def get_types(self):
+    def get_types(self, numeric_only = True):
         '''Get method for data types of variables
 
         Returns:
         -----------
         Python list of str.
         '''
-        return self.types
+        if numeric_only:
+            return list(filter(lambda x: x == 'numeric', self.types))
+        else:
+            return self.types
 
-    def get_mappings(self):
+    def get_mappings(self, numeric_only = True):
         '''Get method for mapping between variable name and column index
         For now returns only mapping for numeric data 
 
@@ -146,18 +156,22 @@ class Data:
         -----------
         Python dictionary. str -> int
         '''
-        return {k: v[1] for k, v in self.header2col.items() if v[0] == DataType.Numeric}
+        if numeric_only:
+            numeric_headers = self.get_headers(True)
+            return {k: v[1] for k, v in self.header2col.items() if k in numeric_headers}
+        else:
+            return {k: v[1] for k, v in self.header2col.items()}
 
         
 
-    def get_num_dims(self):
+    def get_num_dims(self, numeric_only = True):
         '''Get method for number of dimensions in each data sample
 
         Returns:
         -----------
         int. Number of dimensions in each data sample. Same thing as number of variables.
         '''
-        return len(self.headers)
+        return len(self.get_headers(numeric_only))
 
     def get_num_samples(self):
         '''Get method for number of data points (samples) in the dataset
@@ -168,7 +182,7 @@ class Data:
         '''
         return self.nmc_data.shape[0]
 
-    def get_sample(self, rowInd):
+    def get_sample(self, rowInd, numeric = True):
         '''Gets the data sample at index `rowInd` (the `rowInd`-th sample)
         For now return only numeric data 
 
@@ -176,7 +190,10 @@ class Data:
         -----------
         ndarray. shape=(num_vars,) The data sample at index `rowInd`
         '''
-        return self.nmc_data[rowInd] 
+        if numeric:
+            return self.nmc_data[rowInd] 
+        else:
+            return self.nnmc_data[rowInd]
 
 
     def get_header_indices(self, headers):
@@ -264,10 +281,6 @@ class Data:
         self.headers = headers
 
     def _read_types(self, types):
-        # check number of dimensions
-        if len(types) != self.get_num_dims():
-            raise DimensionError(2, types, message = 'Wrong number of dimensions')
-
         types = list(map(lambda s: s.strip(), types))
         # check if type is allowed 
         for t in types:
@@ -275,6 +288,9 @@ class Data:
               raise ValueError("data type {} not supported: check row 2 of the data file\n".format(t))
         self.types = types 
 
+        # check number of dimensions
+        if len(types) != len(self.headers):
+            raise ValueError("Number of types on line 2 not compatible with headers") 
         
         self.header2col = {} # dictionary mapping headers to corresponding cols in data 
         nmc_idx = 0  # numeric data index  
@@ -296,7 +312,7 @@ class Data:
     def _read_content(self, csv_reader):
         nmc_data = []  # numeric data 
         nnmc_data = [] # non-numeric data 
-        N = self.get_num_dims()
+        N = self.get_num_dims(False)
 
         enum_count = {}
         # count #enums 
