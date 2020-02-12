@@ -7,7 +7,6 @@ Spring 2020
 
 import csv 
 import numpy as np
-from enum import Enum
 import os 
 import sys
 import time 
@@ -28,11 +27,6 @@ class ConversionError(Exception):
         self.col = col 
         self.value = value
         self.error = error 
-
-# Enum to differentiate between numeric and non-numeric data types 
-class DataType(Enum):
-    Numeric = 1 
-    NonNumeric = 2 
 
 class Data:
     def __init__(self, filepath=None, headers=None, data=None, header2col=None):
@@ -77,15 +71,31 @@ class Data:
         '''
 
         with open(filepath, mode='rU') as file:
-            # try: 
+            try: 
                 self.filepath = filepath
                 csv_reader = csv.reader(file)
                 self._read_headers(next(csv_reader))
                 self._read_types(next(csv_reader))
                 self._read_content(csv_reader)
-            # except: 
-                # e = sys.exc_info()[1]
-                # print(str(e))
+
+                # build header2col and remove non-numeric headers 
+
+                headers = self.headers 
+                types = self.types 
+                self.headers = [] 
+                self.types = []
+                self.header2col = {} # dictionary mapping headers to corresponding cols in data 
+                idx = 0  
+
+                for (header, type) in zip(headers, types):
+                    if type == 'numeric':
+                        self.header2col[header] = idx
+                        self.headers.append(header)
+                        self.types.append(type)
+                        idx += 1
+            except: 
+                e = sys.exc_info()[1]
+                print(str(e))
 
 
     def __str__(self):
@@ -101,77 +111,58 @@ class Data:
         '''
 
         str_list = []
+        str_list.append('Headers\n')
         for header in self.headers:
-            if self.header2col[header][0] == DataType.Numeric: 
-                str_list.append(header)
-                str_list.append(' ')
+            str_list.append(header)
+            str_list.append(' ')
         str_list.append('\n')
 
+        str_list.append('Types:\n')
         for type in self.types:
-            if not type == "string":
-                str_list.append(type)
-                str_list.append(' ')
+            str_list.append(type)
+            str_list.append(' ')
         str_list.append('\n')
 
-        # str_list.append(str(self.data))
-        str_list.append(str(self.nmc_data))
+        str_list.append(str(self.data))
 
-        
         return ''.join(str_list)
 
-    def get_headers(self, numeric_only = True):
+    def get_headers(self):
         '''Get method for headers
 
         Returns:
         -----------
         Python list of str.
         '''
-        if numeric_only:
-            list = [] 
-            for (header, type) in zip(self.headers, self.types):
-                if type == 'numeric':
-                    list.append(header)
-            return list 
-        else:
-            return self.headers 
+        return self.headers 
 
 
-    def get_types(self, numeric_only = True):
+    def get_types(self):
         '''Get method for data types of variables
 
         Returns:
         -----------
         Python list of str.
         '''
-        if numeric_only:
-            return list(filter(lambda x: x == 'numeric', self.types))
-        else:
-            return self.types
+        return self.types
 
-    def get_mappings(self, numeric_only = True):
+    def get_mappings(self):
         '''Get method for mapping between variable name and column index
-        For now returns only mapping for numeric data 
 
         Returns:
         -----------
         Python dictionary. str -> int
         '''
-        if numeric_only:
-            numeric_headers = self.get_headers(True)
-            return {k: v[1] for k, v in self.header2col.items() if k in numeric_headers}
-        else:
-            return {k: v[1] for k, v in self.header2col.items()}
+        return self.header2col
 
-        
-
-    def get_num_dims(self, numeric_only = True):
+    def get_num_dims(self):
         '''Get method for number of dimensions in each data sample
 
         Returns:
         -----------
         int. Number of dimensions in each data sample. Same thing as number of variables.
         '''
-        return len(self.get_headers(numeric_only))
+        return len(self.headers)
 
     def get_num_samples(self):
         '''Get method for number of data points (samples) in the dataset
@@ -180,9 +171,9 @@ class Data:
         -----------
         int. Number of data samples in dataset.
         '''
-        return self.nmc_data.shape[0]
+        return self.data.shape[0]
 
-    def get_sample(self, rowInd, numeric = True):
+    def get_sample(self, rowInd):
         '''Gets the data sample at index `rowInd` (the `rowInd`-th sample)
         For now return only numeric data 
 
@@ -190,10 +181,7 @@ class Data:
         -----------
         ndarray. shape=(num_vars,) The data sample at index `rowInd`
         '''
-        if numeric:
-            return self.nmc_data[rowInd] 
-        else:
-            return self.nnmc_data[rowInd]
+        return self.data[rowInd]
 
 
     def get_header_indices(self, headers):
@@ -211,7 +199,7 @@ class Data:
         '''
         indices = [] 
         for header in headers:
-            indices.append(self.header2col[header][1])
+            indices.append(self.header2col[header])
         return indices
 
     def get_all_data(self):
@@ -282,43 +270,22 @@ class Data:
 
     def _read_types(self, types):
         types = list(map(lambda s: s.strip(), types))
-        # check if type is allowed 
-        for t in types:
-          if t not in Types:
-              raise ValueError("data type {} not supported: check row 2 of the data file\n".format(t))
-        self.types = types 
 
         # check number of dimensions
         if len(types) != len(self.headers):
             raise ValueError("Number of types on line 2 not compatible with headers") 
+
+        # check if type is allowed 
+        for t in types:
+          if t not in Types:
+              raise ValueError("data type {} not supported: check row 2 of the data file\n".format(t))
+
+        self.types = types 
         
-        self.header2col = {} # dictionary mapping headers to corresponding cols in data 
-        nmc_idx = 0  # numeric data index  
-        nnmc_idx = 0 # non-numeric data index 
-
-        self.enum_dict = {} # dictionary mapping enum cols to enum dict 
-                            # which maps enum strings to numeric data 
-        for i, header in enumerate(self.headers):
-            if not types[i] == 'string':
-                self.header2col[header] = (DataType.Numeric, nmc_idx)
-                nmc_idx += 1
-
-                if types[i] == 'enum':
-                    self.enum_dict[i] = {} 
-            else:
-                self.header2col[header] = (DataType.NonNumeric, nnmc_idx)
-                nnmc_idx += 1 
 
     def _read_content(self, csv_reader):
-        nmc_data = []  # numeric data 
-        nnmc_data = [] # non-numeric data 
-        N = self.get_num_dims(False)
-
-        enum_count = {}
-        # count #enums 
-        for i, type in enumerate(self.types):
-            if type == 'enum':
-                enum_count[i] = 0
+        data = [] 
+        N = self.get_num_dims()
 
         for line, values in enumerate(csv_reader):
             # check if there are enough values 
@@ -326,51 +293,14 @@ class Data:
                 raise DimensionError(line, values,
                         'Data on line {} does not have the right dimension'.format(line))
 
-            nmc_d = [] 
-            nnmc_d = [] 
+            temp = [] 
             for i, item in enumerate(values):
                 if self.types[i] == 'numeric':
-                    nmc_d.append(self._parse_numeric(item, line, i))
-                elif self.types[i] == 'date':
-                    nmc_d.append(self._parse_date(item, line, i))
-                elif self.types[i] == 'enum':
-                    if item not in self.enum_dict[i]:
-                        self.enum_dict[i][item] = enum_count[i]
-                        enum_count[i] += 1 
-                    nmc_d.append(self.enum_dict[i][item])
-                else:
-                    nnmc_d.append(item)
+                    temp.append(self._parse_numeric(item, line, i))
+
+            data.append(temp)
                     
-                    
-            nmc_data.append(nmc_d) 
-            nnmc_data.append(nnmc_d)
-
-        self.nmc_data = np.matrix(nmc_data)
-        self.data = self.nmc_data
-        self.nnmc_data = np.matrix(nnmc_data)
-
-    # parse date with several formats and returns the epoch time 
-    def _parse_date(self, date, line, col):
-        values = date.strip().split('/')
-        try:
-            if len(values) == 3:
-                day = int(values[0])
-                month = int(values[1]) 
-                year = values[2]
-
-                day = '0' + str(day) if day < 10 else values[0] 
-                month = '0' + str(month) if month < 10 else values[1] 
-
-                date = '{} {} {}'.format(day, month, year)
-                t = time.mktime(time.strptime(date, "%d %m %y"))
-                return t
-            else:
-                raise ValueError
-        except:
-            e = sys.exc_info()[1] 
-            print(e)
-            raise ValueError("ill-formatted date at line {}, col {}".format(line+1, col+1))
-                    
+        self.data = np.matrix(data)
 
     def _parse_numeric(self, num, line, col):
         # handle data omission 
