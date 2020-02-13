@@ -29,7 +29,7 @@ class Analysis:
         -----------
         data: Data object. Contains all data samples and variables in a dataset.
         '''
-        pass
+        self.data = data
 
     def min(self, headers, rows=[]):
         '''Computes the minimum of each variable in `headers` in the data object.
@@ -51,7 +51,7 @@ class Analysis:
 
         NOTE: Loops are forbidden!
         '''
-        pass
+        return np.min(self.data.select_data(headers, rows), axis=0)
 
     def max(self, headers, rows=[]):
         '''Computes the maximum of each variable in `headers` in the data object.
@@ -72,7 +72,7 @@ class Analysis:
 
         NOTE: Loops are forbidden!
         '''
-        pass
+        return np.min(self.data.select_data(headers, rows), axis=0)
 
     def range(self, headers, rows=[]):
         '''Computes the range [min, max] for each variable in `headers` in the data object.
@@ -95,7 +95,9 @@ class Analysis:
 
         NOTE: Loops are forbidden!
         '''
-        pass
+        m = self.data.select_data(headers, rows)
+        return [np.min(m, axis=0), np.max(m, axis=0)]
+
 
     def mean(self, headers, rows=[]):
         '''Computes the mean for each variable in `headers` in the data object.
@@ -117,7 +119,8 @@ class Analysis:
         NOTE: You CANNOT use np.mean here!
         NOTE: Loops are forbidden!
         '''
-        pass
+        data = self.data.select_data(headers, rows)
+        return np.sum(data, axis=0) / (np.ones(data.shape[1])*data.shape[0])
 
     def var(self, headers, rows=[]):
         '''Computes the variance for each variable in `headers` in the data object.
@@ -139,7 +142,12 @@ class Analysis:
         NOTE: You CANNOT use np.var or np.mean here!
         NOTE: Loops are forbidden!
         '''
-        pass
+        data = self.data.select_data(headers, rows)
+        N = data.shape[0]
+        mean = self.mean(headers, rows)
+        diff = data - mean 
+        return np.sum(diff*diff, axis=0)*(1/(N-1))
+        
 
     def std(self, headers, rows=[]):
         '''Computes the standard deviation for each variable in `headers` in the data object.
@@ -161,7 +169,7 @@ class Analysis:
         NOTE: You CANNOT use np.var, np.std, or np.mean here!
         NOTE: Loops are forbidden!
         '''
-        pass
+        return np.sqrt(self.var(headers, rows))
 
     def show(self):
         '''Simple wrapper function for matplotlib's show function.
