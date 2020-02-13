@@ -13,21 +13,6 @@ import time
 
 Types = ['numeric', 'string', 'enum', 'date']
 
-# A given line of data does not have the right dimension specified by headers
-class DimensionError(Exception):
-    def __init(self, line, values, message = None):
-        self.line = line
-        self.values = self.values
-        self.message = message
-
-# Error of converting string to numeric values 
-class ConversionError(Exception):
-    def __init(self, row, col, value, error):
-        self.line = row
-        self.col = col 
-        self.value = value
-        self.error = error 
-
 class Data:
     def __init__(self, filepath=None, headers=None, data=None, header2col=None):
         '''Data object constructor
@@ -279,12 +264,12 @@ class Data:
 
         # check number of dimensions
         if len(types) != len(self.headers):
-            raise ValueError("Number of types on line 2 not compatible with headers") 
+            raise ValueError(f"Number of types on line 2 not compatible with headers: should have {len(self.headers)} types, but has {len(types)}") 
 
         # check if type is allowed 
         for t in types:
           if t not in Types:
-              raise ValueError("data type {} not supported: check row 2 of the data file\n".format(t))
+              raise ValueError(f"data type {t} not supported: check row 2 of the data file")
 
         self.types = types 
         
@@ -296,8 +281,7 @@ class Data:
         for line, values in enumerate(csv_reader):
             # check if there are enough values 
             if len(values) != N:
-                raise DimensionError(line, values,
-                        'Data on line {} does not have the right dimension'.format(line))
+                raise ValueError(f'Record on line {line} does not have the right dimension: should have {N} values, but has {len(values)}.')
 
             temp = [] 
             for i, item in enumerate(values):
@@ -319,5 +303,5 @@ class Data:
         try: 
             return float(num)
         except (ValueError, OverflowError) as e: 
-            raise ConversionError(line, col+1, num, e)
+            raise ValueError(f"Fail to convert {num} to numeric values on line {line}, col {col}")
 
