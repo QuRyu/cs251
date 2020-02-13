@@ -67,10 +67,21 @@ class Data:
 
                 headers = self.headers 
                 types = self.types 
-                self.headers = [] 
-                self.types = []
-                self.header2col = {} # dictionary mapping headers to corresponding cols in data 
-                idx = 0  
+
+                self.headers_all = headers # both numeric and non-numeric headers 
+                self.types = types # both numeric and non-numeric types
+                self.headers = []    # numeric headers 
+                self.types = []      # numeric types 
+
+                self.header2col = {} # mapping numeric headers to cols in (numeric) data
+                self.header2col_enum = {} # mapping enum headers to cols in enum_data
+                self.header2col_date = {} # mapping date headers to cols in date_data
+                self.header2col_str  = {} # mapping str headers to cols in str_data
+
+                idx = 0  # index for numeric data 
+                idx_date = 0 
+                idx_enum = 0 
+                idx_str  = 0
 
                 for (header, type) in zip(headers, types):
                     if type == 'numeric':
@@ -78,6 +89,19 @@ class Data:
                         self.headers.append(header)
                         self.types.append(type)
                         idx += 1
+                    elif type == 'enum':
+                        self.header2col_enum[header] = idx_enum
+                        idx_enum += 1 
+                    elif type == 'date':
+                        self.header2col_date[header] = idx_date 
+                        idx_date += 1 
+                    elif type == 'string':
+                        self.header2col_str[header] = idx_str
+                        idx_str += 1 
+
+                # invert the enum_mapping
+                invert = lambda x: {v: k for k, v in x.items()}
+                self.enum_mapping = {k: invert(v) for k, v in self.enum_mapping.items()}
             except: 
                 e = sys.exc_info()[1]
                 print(str(e))
@@ -275,7 +299,14 @@ class Data:
         
 
     def _read_content(self, csv_reader):
-        data = [] 
+        data = [] # numeric data 
+        enum_data = [] 
+        str_data = [] 
+        date_data = [] 
+
+        enum_mapping = {} # of type Dict<col, Dict<str, int>>
+        enum_idx = {} # of type Dict<col, int>
+
         N = len(self.headers)
 
         for line, values in enumerate(csv_reader):
@@ -283,14 +314,32 @@ class Data:
             if len(values) != N:
                 raise ValueError(f'Record on line {line} does not have the right dimension: should have {N} values, but has {len(values)}.')
 
-            temp = [] 
+            temp = [] # numeric data temp
+            enum_temp = [] 
+            str_temp = []
+            date_temp = [] 
+
             for i, item in enumerate(values):
                 if self.types[i] == 'numeric':
                     temp.append(self._parse_numeric(item, line, i))
+                elif self.types[i] == 'string':
+                    str_temp.append(item)
+                elif self.types[i] == 'enum':
+                    pass 
+                elif self.types[i] == 'date':
+                    date_temp.append(self._parse_date(item, line, i))
 
             data.append(temp)
+            enum_data.append(enum_temp)
+            date_data.append(date_temp)
+            str_data.append(str_temp)
                     
         self.data = np.array(data)
+        self.enum_data = np.array(enum_data)
+        self.str_data = np.array(str_data)
+        self.date_data = np.array(date_data)
+
+        self.enum_mapping = enum_mapping
 
     def _parse_numeric(self, num, line, col):
         # handle data omission 
@@ -304,4 +353,8 @@ class Data:
             return float(num)
         except (ValueError, OverflowError) as e: 
             raise ValueError(f"Fail to convert {num} to numeric values on line {line}, col {col}")
+
+    def _parse_date(self, date, line, col):
+        pass 
+        
 
