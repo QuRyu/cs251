@@ -96,7 +96,7 @@ class Analysis:
         NOTE: Loops are forbidden!
         '''
         m = self.data.select_data(headers, rows)
-        return [np.min(m, axis=0), np.max(m, axis=0)]
+        return (np.min(m, axis=0), np.max(m, axis=0))
 
 
     def mean(self, headers, rows=[]):
@@ -178,7 +178,7 @@ class Analysis:
         '''
         plt.show()
 
-    def scatter(self, ind_var, dep_var, title):
+    def scatter(self, ind_var, dep_var, title, marker='.'):
         '''Creates a simple scatter plot with "x" variable in the dataset `ind_var` and
         "y" variable in the dataset `dep_var`. Both `ind_var` and `dep_var` should be strings
         in `self.headers`.
@@ -201,9 +201,16 @@ class Analysis:
 
         NOTE: Do not call plt.show() here.
         '''
-        pass
+        data = self.data.select_data([ind_var, dep_var])
+        x = data[:, 0]
+        y = data[:, 1]
+        fig, plot = plt.subplots()
+        fig.suptitle(title)
+        plot.scatter(x, y, marker = marker)
+        
+        return (x, y)
 
-    def pair_plot(self, data_vars, fig_sz=(12, 12), title=''):
+    def pair_plot(self, data_vars, fig_sz=(12, 12), title='', marker='.', color='b'):
         '''Create a pair plot: grid of scatter plots showing all combinations of variables in
         `data_vars` in the x and y axes.
 
@@ -232,4 +239,23 @@ class Analysis:
 
         Tip: Check out the sharex and sharey optional parameters of plt.subplots
         '''
-        pass
+
+        M = len(data_vars)
+        data = self.data.select_data(data_vars)
+        fig, subplots = plt.subplots(nrows=M, ncols=M,
+                sharex='col', sharey='row', figsize=fig_sz)
+
+        fig.suptitle(title)
+
+        for i in range(M):
+            for j in range(M):
+                subplots[i, j].scatter(data[:, j], data[:, i])
+
+                if i == M-1: # last row 
+                    subplots[i, j].set_xlabel(data_vars[j])
+                if j == 0: # first column 
+                    subplots[i, j].set_ylabel(data_vars[i])
+
+        return (fig, subplots)
+
+
