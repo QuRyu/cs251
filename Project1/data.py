@@ -265,7 +265,7 @@ class Data:
         Hint: For selecting a subset of rows from the data ndarray, check out np.ix_
         '''
         indices = self.get_header_indices(headers)
-        if not rows:
+        if isinstance(rows, list) and not rows:
             rows = range(self.get_num_samples())
         return self.data[np.ix_(rows, indices)]
             
@@ -306,7 +306,7 @@ class Data:
 
             data.append(temp)
                     
-        self.data = np.matrix(data)
+        self.data = np.array(data)
 
     def _parse_numeric(self, num, line, col):
         # handle data omission 
