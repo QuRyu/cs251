@@ -69,7 +69,7 @@ class Data:
                 types = self.types 
 
                 self.headers_all = headers # both numeric and non-numeric headers 
-                self.types = types # both numeric and non-numeric types
+                self.types_all = types # both numeric and non-numeric types
                 self.headers = []    # numeric headers 
                 self.types = []      # numeric types 
 
@@ -99,7 +99,7 @@ class Data:
                         self.header2col_str[header] = idx_str
                         idx_str += 1 
 
-                # invert the enum_mapping
+                # invert the enum_mapping to type Dict<col, Dict<int, str>>
                 invert = lambda x: {v: k for k, v in x.items()}
                 self.enum_mapping = {k: invert(v) for k, v in self.enum_mapping.items()}
             except: 
@@ -134,24 +134,39 @@ class Data:
 
         return ''.join(str_list)
 
-    def get_headers(self):
+    def get_headers(self, numeric_only=True):
         '''Get method for headers
 
+        Parameters:
+        -----------
+        numeric_only: only numeric info is returned 
+
         Returns:
         -----------
         Python list of str.
         '''
-        return self.headers 
+        if numeric_only:
+            return self.headers 
+        else:
+            return self.headers_all
 
 
-    def get_types(self):
+
+    def get_types(self, numeric_only=True):
         '''Get method for data types of variables
 
+        Parameters:
+        -----------
+        numeric_only: only numeric info is returned 
+
         Returns:
         -----------
         Python list of str.
         '''
-        return self.types
+        if numeric_only:
+            return self.types
+        else:
+            return self.types_all
 
     def get_mappings(self):
         '''Get method for mapping between variable name and column index
