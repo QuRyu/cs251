@@ -101,7 +101,12 @@ class Data:
 
                 # invert the enum_mapping to type Dict<col, Dict<int, str>>
                 invert = lambda x: {v: k for k, v in x.items()}
-                self.enum_mapping = {k: invert(v) for k, v in self.enum_mapping.items()}
+                self.enum_mapping = {i: invert(v) for i, (_, v) in enumerate(self.enum_mapping.items())}
+
+                self.all_data = {'numeric': self.data, 'enum': self.enum_data, 
+                        'date': self.date_data, 'string': self.str_data}
+                self.all_header2col = {'numeric': self.header2col, 'enum': self.header2col_enum, 
+                        'date': self.header2col_date, 'string': self.header2col_str}
             except: 
                 e = sys.exc_info()[1]
                 print(str(e))
@@ -134,57 +139,72 @@ class Data:
 
         return ''.join(str_list)
 
-    def get_headers(self, numeric_only=True):
+    def get_headers(self, return_all=False):
         '''Get method for headers
 
         Parameters:
         -----------
-        numeric_only: only numeric info is returned 
+        return_all: if return all info; by default only return numeric
 
         Returns:
         -----------
         Python list of str.
         '''
-        if numeric_only:
-            return self.headers 
-        else:
+        if return_all:
             return self.headers_all
+        else:
+            return self.headers 
 
-
-
-    def get_types(self, numeric_only=True):
+    def get_types(self, return_all=False):
         '''Get method for data types of variables
 
         Parameters:
         -----------
-        numeric_only: only numeric info is returned 
+        return_all: if return all info; by default only return numeric
 
         Returns:
         -----------
         Python list of str.
         '''
-        if numeric_only:
-            return self.types
-        else:
+        if return_all:
             return self.types_all
+        else:
+            return self.types
 
-    def get_mappings(self):
+    def get_mappings(self, data_type='numeric'):
         '''Get method for mapping between variable name and column index
 
         Returns:
         -----------
         Python dictionary. str -> int
         '''
-        return self.header2col
+        if data_type not in Types:
+            raise ValueError(f"Data type {data_type} not supported: pass only types {Types}")
+        else:
+            return self.all_header2col[data_type]
 
-    def get_num_dims(self):
+    def get_enum_mappings(self, header):
+        '''Get method for mapping between value and enum name 
+
+        Returns:
+        -----------
+        Python dictionary. int -> str
+        '''
+
+        col = self.header2col_enum[header] 
+        return self.enum_mapping[col]
+
+    def get_num_dims(self, return_all=False):
         '''Get method for number of dimensions in each data sample
 
         Returns:
         -----------
         int. Number of dimensions in each data sample. Same thing as number of variables.
         '''
-        return len(self.headers)
+        if return_all:
+            return len(self.headers_all)
+        else:
+            return len(self.headers)
 
     def get_num_samples(self):
         '''Get method for number of data points (samples) in the dataset
@@ -195,17 +215,20 @@ class Data:
         '''
         return self.data.shape[0]
 
-    def get_sample(self, rowInd):
+    def get_sample(self, rowInd, data_type='numeric'):
         '''Gets the data sample at index `rowInd` (the `rowInd`-th sample)
 
         Returns:
         -----------
         ndarray. shape=(num_vars,) The data sample at index `rowInd`
         '''
-        return self.data[rowInd]
+        if data_type not in Types:
+            raise ValueError(f"Data type {data_type} not supported: pass only types {Types}")
+        else:
+            return self.all_data[data_type][rowInd]
 
 
-    def get_header_indices(self, headers):
+    def get_header_indices(self, headers, data_type='numeric'):
         '''Gets the variable (column) indices of the str variable names in `headers`.
 
         Parameters:
@@ -217,18 +240,20 @@ class Data:
         Python list of nonnegative ints. shape=len(headers). The indices of the headers in `headers`
             list.
         '''
-        if bool(headers) and isinstance(headers, list) and all(isinstance(elem,
-            str) for elem in headers):
+        if data_type not in Types:
+            raise ValueError(f"Data type {data_type} not supported: pass only types {Types}")
+
+        if isinstance(headers, str):
+            headers = [headers]
+        if bool(headers) and isinstance(headers, list) and all(isinstance(elem, str) for elem in headers):
             indices = [] 
             for header in headers:
-                indices.append(self.header2col[header])
+                indices.append(self.all_header2col[data_type][header])
             return indices
-        elif isinstance(headers, str):
-            return [self.header2col[headers]]
         else:
             raise ValueError(f'headers {headers} not supported')
 
-    def get_all_data(self):
+    def get_all_data(self, data_type='numeric'):
         '''Gets a copy of the entire dataset
 
         (Week 2)
@@ -239,9 +264,12 @@ class Data:
             NOTE: This should be a COPY, not the data stored here itself.
             This can be accomplished with numpy's copy function.
         '''
-        return self.data.copy()
+        if data_type not in Types:
+            raise ValueError(f"Data type {data_type} not supported: pass only types {Types}")
+        else:
+            return self.all_data[data_type].copy()
 
-    def head(self):
+    def head(self, data_type='numeric'):
         '''Return the 1st five data samples (all variables)
 
         (Week 2)
@@ -250,9 +278,12 @@ class Data:
         -----------
         ndarray. shape=(5, num_vars). 1st five data samples.
         '''
-        return self.data[:4, :]
+        if data_type not in Types:
+            raise ValueError(f"Data type {data_type} not supported: pass only types {Types}")
+        else:
+            return self.all_data[data_type][:5, :]
 
-    def tail(self):
+    def tail(self, data_type='numeric'):
         '''Return the last five data samples (all variables)
 
         (Week 2)
@@ -261,7 +292,10 @@ class Data:
         -----------
         ndarray. shape=(5, num_vars). Last five data samples.
         '''
-        return self.data[-5:, :]
+        if data_type not in Types:
+            raise ValueError(f"Data type {data_type} not supported: pass only types {Types}")
+        else:
+            return self.all_data[data_type][-5, :]
 
     def select_data(self, headers, rows=[]):
         '''Return data samples corresponding to the variable names in `headers`.
@@ -321,6 +355,10 @@ class Data:
 
         enum_mapping = {} # of type Dict<col, Dict<str, int>>
         enum_idx = {} # of type Dict<col, int>
+        for i, t in enumerate(self.types):
+            if t == 'enum':
+                enum_idx[i] = 0 
+                enum_mapping[i] = {}
 
         N = len(self.headers)
 
@@ -340,7 +378,11 @@ class Data:
                 elif self.types[i] == 'string':
                     str_temp.append(item)
                 elif self.types[i] == 'enum':
-                    pass 
+                    if item not in enum_mapping[i]: 
+                        idx = enum_idx[i] 
+                        enum_mapping[i][item] = idx 
+                        enum_idx[i] = idx+1
+                    enum_temp.append(enum_mapping[i][item])
                 elif self.types[i] == 'date':
                     date_temp.append(self._parse_date(item, line, i))
 
@@ -369,7 +411,26 @@ class Data:
         except (ValueError, OverflowError) as e: 
             raise ValueError(f"Fail to convert {num} to numeric values on line {line}, col {col}")
 
+    # parse date of the format 01/01/20 (dd/mm/yy)
     def _parse_date(self, date, line, col):
-        pass 
+        try: 
+            dates = date.split('/')
+            day = int(dates[0])
+            month = int(dates[1])
+            year = dates[2]
+
+            if day > 0 and day <= 31 and month > 0 and month <= 12:
+                day = '0'+str(day) if day < 10 else str(day)
+                month = '0'+str(month) if month < 10 else str(month)
+
+                date = f"{day} {month} {year}"
+                return time.mktime(time.strptime(date, "%d %m %y"))
+            else:
+                raise ValueError()
+        except: 
+            raise ValueError(f"fail to parse date on line {line}, col {col}")
+
+
+
         
 
