@@ -295,9 +295,9 @@ class Data:
         if data_type not in Types:
             raise ValueError(f"Data type {data_type} not supported: pass only types {Types}")
         else:
-            return self.all_data[data_type][-5, :]
+            return self.all_data[data_type][-5:, :]
 
-    def select_data(self, headers, rows=[]):
+    def select_data(self, headers, rows=[], data_type='numeric'):
         '''Return data samples corresponding to the variable names in `headers`.
         If `rows` is empty, return all samples, otherwise return samples at the indices specified
         by the `rows` list.
@@ -322,10 +322,13 @@ class Data:
 
         Hint: For selecting a subset of rows from the data ndarray, check out np.ix_
         '''
-        indices = self.get_header_indices(headers)
+        if data_type not in Types:
+            raise ValueError(f"Data type {data_type} not supported: pass only types {Types}")
+
+        indices = self.get_header_indices(headers, data_type)
         if isinstance(rows, list) and not rows:
             rows = range(self.get_num_samples())
-        return self.data[np.ix_(rows, indices)]
+        return self.all_data[data_type][np.ix_(rows, indices)]
             
 
     def _read_headers(self, headers):
