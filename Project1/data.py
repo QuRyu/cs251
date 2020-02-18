@@ -403,6 +403,8 @@ class Data:
 
     def _parse_numeric(self, num, line, col):
         # handle data omission 
+        if num.strip() == '':
+            return 0 
         try:
             if int(num) == -9999:
                 return 0
@@ -412,7 +414,7 @@ class Data:
         try: 
             return float(num)
         except (ValueError, OverflowError) as e: 
-            raise ValueError(f"Fail to convert {num} to numeric values on line {line}, col {col}")
+            raise ValueError(f"Fail to convert {num} to numeric values on line {line+3}, col {col+1}")
 
     # parse date of the format 01/01/20 (dd/mm/yy)
     def _parse_date(self, date, line, col):
@@ -431,7 +433,7 @@ class Data:
             else:
                 raise ValueError()
         except: 
-            raise ValueError(f"fail to parse date on line {line}, col {col}")
+            raise ValueError(f"fail to parse date on line {line+3}, col {col+1}")
 
 
 
