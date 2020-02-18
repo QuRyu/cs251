@@ -1,10 +1,11 @@
 '''analysis.py
 Run statistical analyses and plot Numpy ndarray data
-YOUR NAME HERE
+Qingbo Liu
 CS 251 Data Analysis Visualization, Spring 2020
 '''
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy import stats
 
 
 class Analysis:
@@ -72,7 +73,7 @@ class Analysis:
 
         NOTE: Loops are forbidden!
         '''
-        return np.min(self.data.select_data(headers, rows), axis=0)
+        return np.max(self.data.select_data(headers, rows), axis=0)
 
     def range(self, headers, rows=[]):
         '''Computes the range [min, max] for each variable in `headers` in the data object.
@@ -171,6 +172,64 @@ class Analysis:
         '''
         return np.sqrt(self.var(headers, rows))
 
+    def percentiles(self, headers, rows=[]):
+        '''Computes 25th, median, and 75th percentiles for each variable in `headers` in the data object.
+        Possibly only in a subset of data samples (`rows`) if `rows` is not empty.
+
+        Parameters:
+        -----------
+        headers: Python list of str.
+            One str per header variable name in data
+        rows: Python list of int.
+            Indices of data samples to restrict computation of standard deviation over,
+            or over all indices if rows=[]
+
+        Returns
+        -----------
+        percentiles: ndarray. shape=(3, len(headers))
+            25th, median, and 75th percentiles for each of the selected header variables
+        '''
+        data = self.data.select_data(headers, rows) 
+        return np.percentile(data, [25, 50, 75], axis=0)
+
+    def mode(self, headers, rows=[]):
+        '''Computes mode (numbers that appear most often) for each variable in `headers` in the data object.
+        Possibly only in a subset of data samples (`rows`) if `rows` is not empty.
+
+        Parameters:
+        -----------
+        headers: Python list of str.
+            One str per header variable name in data
+        rows: Python list of int.
+            Indices of data samples to restrict computation of standard deviation over,
+            or over all indices if rows=[]
+
+        Returns
+        -----------
+        modes: ndarray. shape=(len(headers),)
+            Mode for each of the selected header variables
+        '''
+        return stats.mode(self.data.select_data(headers, rows), axis=0)
+
+    def skew(self, headers, rows=[]):
+        '''Computes skewness  for each variable in `headers` in the data object.
+        Possibly only in a subset of data samples (`rows`) if `rows` is not empty.
+
+        Parameters:
+        -----------
+        headers: Python list of str.
+            One str per header variable name in data
+        rows: Python list of int.
+            Indices of data samples to restrict computation of standard deviation over,
+            or over all indices if rows=[]
+
+        Returns
+        -----------
+        skewness: ndarray. shape=(len(headers),)
+            Mode for each of the selected header variables
+        '''
+        return stats.skew(self.data.select_data(headers, rows), axis=0)
+
     def show(self):
         '''Simple wrapper function for matplotlib's show function.
 
@@ -178,7 +237,7 @@ class Analysis:
         '''
         plt.show()
 
-    def scatter(self, ind_var, dep_var, title, marker='.'):
+    def scatter(self, ind_var, dep_var, title='', marker='.', fig_sz=(4, 4), **kwargs):
         '''Creates a simple scatter plot with "x" variable in the dataset `ind_var` and
         "y" variable in the dataset `dep_var`. Both `ind_var` and `dep_var` should be strings
         in `self.headers`.
@@ -191,6 +250,8 @@ class Analysis:
             Name of variable that is plotted along the y axis
         title: str.
             Title of the scatter plot
+        **kwargs:
+            Optional keyword arguments passed to Axes
 
         Returns:
         -----------
@@ -204,7 +265,7 @@ class Analysis:
         data = self.data.select_data([ind_var, dep_var])
         x = data[:, 0]
         y = data[:, 1]
-        fig, plot = plt.subplots()
+        fig, plot = plt.subplots(figsize=fig_sz, subplot_kw=kwargs)
         fig.suptitle(title)
         plot.scatter(x, y, marker = marker)
         
@@ -258,4 +319,64 @@ class Analysis:
 
         return (fig, subplots)
 
+    def bar(self, var, title='', fig_sz=(12, 12), **kwargs):
+        '''Creates a bar chart with "var" variable in the dataset `var`. `var` should be strings
+        in `self.headers`.
+
+        Parameters:
+        -----------
+        var: str. 
+            Name of variable that is plotted in the bar chart.
+        title: str.
+            Title of the bar chart.
+        **kwargs:
+            Optional keyword arguments passed to Axes
+
+        Returns:
+        -----------
+        labels: ndarray. shape=(len(unique_enum_values),)
+            List of enum values being plotted. 
+        counts: ndarray. shape=(len(unique_enum_values),)
+            Counts of each enum values.
+        '''
+        raw_data = self.data.select_data(var, data_type='enum')
+        enum_mapping = self.data.get_enum_mappings(var)
+
+        elements, counts = np.unique(raw_data, return_counts=True)
+        labels = np.vectorize(lambda x: enum_mapping[x])(elements)
+
+        fig, plot = plt.subplots(figsize=fig_sz, subplot_kw=kwargs)
+        plot.set_title(title)
+
+        plot.bar(range(len(counts)), counts, tick_label=labels)
+
+        return (labels, counts) 
+
+    def boxplot(self, data_vars, title='', **kwargs):
+        '''Creates a box and whisker plot  with "var" variables in the dataset `vars`. `var` should be strings
+        in `self.headers`.
+
+        Parameters:
+        -----------
+        vars: Python list of str.
+            Names of variables that is plotted in histogram.
+        title: str.
+            Title of the histogram.
+        **kwargs:
+            Optional keyword arguments passed to Axes
+
+        Returns:
+        -----------
+        result: dict. 
+            A dictionary mapping each component of the boxplot to a list of 
+            the matplotlib.lines.Line2D instances created. 
+        '''
+
+        data = self.data.select_data(data_vars)
+
+        _, plot = plt.subplots(subplot_kw=kwargs)
+        plot.set_title(title)
+
+        result = plot.boxplot(data, labels=data_vars)
+        return result
 
