@@ -27,7 +27,8 @@ class Transformation(analysis.Analysis):
         - Pass `data` to the superclass constructor.
         - Create an instance variables for `data_orig`.
         '''
-        pass
+        self.data_orig = data_orig
+        super(Transformation, self).__init__(data)
 
     def project(self, headers):
         '''Project the data on the list of data variables specified by `headers` — i.e. select a
@@ -55,7 +56,11 @@ class Transformation(analysis.Analysis):
         - Make sure that you create 'valid' values for all the `Data` constructor optional parameters
         (except you dont need `filepath` because it is not relevant).
         '''
-        pass
+        if len(headers) < 2 or len(headers) > 3:
+            raise ValueError(f"headers {headers} should be only of length 2 or 3")
+        
+        self.ndim = len(headers)
+        seld.data = self.data_orig.get_subset_data(headers)
 
     def get_data_homogeneous(self):
         '''Helper method to get a version of the projected data array with an added homogeneous
@@ -71,7 +76,7 @@ class Transformation(analysis.Analysis):
         NOTE:
         - Do NOT update self.data with the homogenous coordinate.
         '''
-        pass
+        return np.hstack((self.data.get_all_data(), np.ones((self.data.get_num_samples(), 1))))
 
     def translation_matrix(self, headers, magnitudes):
         ''' Make an M-dimensional homogeneous transformation matrix for translation,
