@@ -16,11 +16,11 @@ class Transformation(analysis.Analysis):
 
         Parameters:
         -----------
-        data_orig: ndarray. shape=(N, num_vars).
-            An array containing the original data array (only containing all the numeric variables
+        data_orig: Data object. shape=(N, num_vars).
+            Contains the original dataset (only containing all the numeric variables
             — `num_vars` in total).
-        data: ndarray (or None). shape=(N, num_proj_vars).
-            An array containing all the samples as the original, but ONLY A SUBSET of the variables.
+        data: Data object (or None). shape=(N, num_proj_vars).
+            Contains all the data samples as the original, but ONLY A SUBSET of the variables.
             (`num_proj_vars` in total). `num_proj_vars` <= `num_vars`
 
         TODO:
