@@ -14,7 +14,7 @@ import time
 Types = ['numeric', 'string', 'enum', 'date']
 
 class Data:
-    def __init__(self, filepath=None, headers=None, types = None, data=None, header2col=None):
+    def __init__(self, filepath=None, headers=None, types=None, data=None, header2col=None):
         '''Data object constructor
         TODO:
         - Declare/initialize the following instance variables:
@@ -336,28 +336,6 @@ class Data:
             rows = range(self.get_num_samples())
         return self.all_data[data_type][np.ix_(rows, indices)]
             
-    def get_subset_data(self, headers):
-        '''Return data samples corresponding to the variable names in `headers`.
-
-        For example, if self.headers = ['a', 'b', 'c'] and we pass in header = 'b', we return
-        a new `Data` object containing column #2 of self.data. 
-
-        Parameters:
-        -----------
-            headers: Python list of str. Header names to take from self.data
-
-        Returns:
-        -----------
-        Data. shape=(num_data_samps, len(headers)) 
-            Subset of data from the variables `headers` 
-        '''
-        data = self.select_data(headers).copy()
-        headers = self.headers
-        types = self.types
-        header2col = self.header2col
-
-        return Data(headers=headers, types=types, data=data, header2col=header2col)
-
     def _read_headers(self, headers):
         headers = list(map(lambda s: s.strip(), headers))
         self.headers = headers

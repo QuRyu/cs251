@@ -60,7 +60,17 @@ class Transformation(analysis.Analysis):
             raise ValueError(f"headers {headers} should be only of length 2 or 3")
         
         self.ndim = len(headers)
-        seld.data = self.data_orig.get_subset_data(headers)
+        # seld.data = self.data_orig.get_subset_data(headers)
+
+        data = [] 
+        for h in headers:
+            data.append(self.data_orig.select_data(h).copy())
+        data = np.hstack(data)
+
+        header2col = {h: i for i, h in enumerate(headers)}
+        types = ['numeric' for _ in range(len(headers))]
+
+        return Data(headers=headers, types=types, data=data, header2col=header2col)
 
     def get_data_homogeneous(self):
         '''Helper method to get a version of the projected data array with an added homogeneous
@@ -97,7 +107,21 @@ class Transformation(analysis.Analysis):
         NOTE: This method just creates the translation matrix. It does NOT actually PERFORM the
         translation!
         '''
-        pass
+        if not len(headers) == len(magnitudes):
+            raise ValueError(f'length of headers {headers} should be equal to length of magnitudes {magnitudes}')
+
+        data_headers = self.data.get_headers()
+        
+        N = self.data.get_num_dims()
+        M = np.eye(N+1)
+        idx = 0
+        for i, h in enumerate(headers): 
+            if h in headers:
+                M[i, N-1] = magnitudes[idx]
+                idx += 1
+
+        return M 
+
 
     def scale_matrix(self, headers, magnitudes):
         '''Make an M-dimensional homogeneous scaling matrix for scaling, where M is the number of
@@ -116,7 +140,20 @@ class Transformation(analysis.Analysis):
 
         NOTE: This method just creates the scaling matrix. It does NOT actually PERFORM the scaling!
         '''
-        pass
+        if not len(headers) == len(magnitudes):
+            raise ValueError(f'length of headers {headers} should be equal to length of magnitudes {magnitudes}')
+
+        data_headers = self.data.get_headers()
+        
+        N = self.data.get_num_dims()
+        M = np.eye(N+1)
+        idx = 0
+        for i, h in enumerate(headers): 
+            if h in headers:
+                M[i, i] = magnitudes[idx]
+                idx += 1
+
+        return M 
 
     def rotation_matrix_3d(self, header, degrees):
         '''Make an 3-D homogeneous rotation matrix for rotating the projected data about the ONE
