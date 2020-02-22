@@ -7,6 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import analysis
 import data
+import palettable 
 
 
 class Transformation(analysis.Analysis):
@@ -60,17 +61,15 @@ class Transformation(analysis.Analysis):
             raise ValueError(f"headers {headers} should be only of length 2 or 3")
         
         self.ndim = len(headers)
-        # seld.data = self.data_orig.get_subset_data(headers)
-
-        data = [] 
+        project_data = [] 
         for h in headers:
-            data.append(self.data_orig.select_data(h).copy())
-        data = np.hstack(data)
+            project_data.append(self.data_orig.select_data(h).copy())
+        project_data = np.hstack(project_data)
 
         header2col = {h: i for i, h in enumerate(headers)}
         types = ['numeric' for _ in range(len(headers))]
 
-        return Data(headers=headers, types=types, data=data, header2col=header2col)
+        self.data = data.Data(headers=headers, types=types, data=project_data, header2col=header2col)
 
     def get_data_homogeneous(self):
         '''Helper method to get a version of the projected data array with an added homogeneous
@@ -87,6 +86,9 @@ class Transformation(analysis.Analysis):
         - Do NOT update self.data with the homogenous coordinate.
         '''
         return np.hstack((self.data.get_all_data(), np.ones((self.data.get_num_samples(), 1))))
+
+    def drop_homogeneous_coord(self, m): 
+        return np.delete(m, self.data.get_num_dims(), 1)
 
     def translation_matrix(self, headers, magnitudes):
         ''' Make an M-dimensional homogeneous transformation matrix for translation,
@@ -109,16 +111,19 @@ class Transformation(analysis.Analysis):
         '''
         if not len(headers) == len(magnitudes):
             raise ValueError(f'length of headers {headers} should be equal to length of magnitudes {magnitudes}')
+        elif len(headers) < 2 or len(headers) > 3:
+            raise ValueError(f'headers should be of length 2 or 3')
 
         data_headers = self.data.get_headers()
         
         N = self.data.get_num_dims()
         M = np.eye(N+1)
-        idx = 0
+        header2col = self.data.get_mappings()
         for i, h in enumerate(headers): 
-            if h in headers:
-                M[i, N-1] = magnitudes[idx]
-                idx += 1
+            if h not in header2col:
+                raise ValueError(f'header {header} not defined in headers {self.data.get_headers()}')
+            else:
+                M[header2col[h], N] = magnitudes[i]
 
         return M 
 
@@ -142,16 +147,20 @@ class Transformation(analysis.Analysis):
         '''
         if not len(headers) == len(magnitudes):
             raise ValueError(f'length of headers {headers} should be equal to length of magnitudes {magnitudes}')
+        elif len(headers) < 2 or len(headers) > 3:
+            raise ValueError(f'headers should be of length 2 or 3')
 
         data_headers = self.data.get_headers()
         
         N = self.data.get_num_dims()
         M = np.eye(N+1)
-        idx = 0
+        header2col = self.data.get_mappings()
         for i, h in enumerate(headers): 
-            if h in headers:
-                M[i, i] = magnitudes[idx]
-                idx += 1
+            if h not in header2col:
+                raise ValueError(f'header {header} not defined in headers {self.data.get_headers()}')
+            else:
+                idx = header2col[h]
+                M[idx, idx] = magnitudes[i]
 
         return M 
 
@@ -170,7 +179,33 @@ class Transformation(analysis.Analysis):
 
         NOTE: This method just creates the rotation matrix. It does NOT actually PERFORM the rotation!
         '''
-        pass
+        import math 
+
+        M = np.eye(4)
+        header2col = self.data.get_mappings()
+        
+        angel = math.radians(degrees)
+
+        if header not in header2col:
+            raise ValueError(f'header {header} should be one of headers {self.data.get_headers()}')
+        
+        if header2col[header] == 0:
+            M[1, 1] = np.cos(angel)
+            M[1, 2] = -np.sin(angel)
+            M[2, 1] = np.sin(angel)
+            M[2, 2] = np.cos(angel)
+        elif header2col[header] == 1: 
+            M[0, 0] = np.cos(angel)
+            M[0, 2] = np.sin(angel)
+            M[2, 0] = -np.sin(angel)
+            M[2, 2] = np.cos(angel)
+        elif header2col[header] == 2: 
+            M[0, 0] = np.cos(angel)
+            M[0, 1] = -np.sin(angel)
+            M[1, 0] = np.sin(angel)
+            M[1, 1] = np.cos(angel)
+
+        return M 
 
     def transform(self, C):
         '''Transforms the PROJECTED dataset by applying the homogeneous transformation matrix `C`.
@@ -184,7 +219,8 @@ class Transformation(analysis.Analysis):
         -----------
         ndarray. shape=(N, num_proj_vars+1). The projected dataset after it has been transformed by `C`
         '''
-        pass
+        return (C @ self.get_data_homogeneous().T).T
+        
 
     def translate(self, headers, magnitudes):
         '''Translates the variables `headers` in projected dataset in corresponding amounts specified
@@ -209,7 +245,8 @@ class Transformation(analysis.Analysis):
         transformed in this method). NOTE: The updated `self.data` SHOULD NOT have a homogenous
         coordinate!
         '''
-        pass
+        M = self.translation_matrix(headers, magnitudes)
+        return self.drop_homogeneous_coord(self.transform(M))
 
     def scale(self, headers, magnitudes):
         '''Scales the variables `headers` in projected dataset in corresponding amounts specified
@@ -234,7 +271,8 @@ class Transformation(analysis.Analysis):
         transformed in this method). NOTE: The updated `self.data` SHOULD NOT have a
         homogenous coordinate!
         '''
-        pass
+        M = self.scale_matrix(headers, magnitudes)
+        return self.drop_homogeneous_coord(self.transform(M))
 
     def rotate_3d(self, header, degrees):
         '''Rotates the projected data about the variable `header` by the angle (in degrees)
@@ -257,7 +295,8 @@ class Transformation(analysis.Analysis):
         transformed in this method). NOTE: The updated `self.data` SHOULD NOT have a
         homogenous coordinate!
         '''
-        pass
+        M = self.rotation_matrix_3d(header, degrees)
+        return self.drop_homogeneous_coord(self.transform(M))
 
     def normalize_together(self):
         '''Normalize all variables in the projected dataset together by translating the global minimum
@@ -267,7 +306,18 @@ class Transformation(analysis.Analysis):
         -----------
         ndarray. shape=(N, num_proj_vars). The normalized version of the projected dataset.
         '''
-        pass
+        headers = self.data.get_headers()
+        mins = super().min(headers)
+        maxs = super().max(headers)
+
+        global_min = np.min(mins)
+        global_max = np.max(maxs)
+        range = global_max - global_min 
+
+        translation_M = self.translation_matrix(headers, [-global_min for _ in range(len(headers))])
+        scale_M = self.scale_matrix(headers, [1/range for _ in range(len(headers))])
+
+        return self.drop_homogeneous_coord(self.transform(scale_M @ translation_M))
 
     def normalize_separately(self):
         '''Normalize each variable separately by translating its local minimum to zero and scaling
@@ -277,7 +327,13 @@ class Transformation(analysis.Analysis):
         -----------
         ndarray. shape=(N, num_proj_vars). The normalized version of the projected dataset.
         '''
-        pass
+        mins, maxs = super().range(self.data.get_headers())
+        ranges = maxs - mins 
+
+        translation_M = self.translation_matrix(headers, -mins)
+        scale_M = self.scale_matrix(headers, 1/ranges)
+
+        return self.drop_homogeneous_coord(self.transform(scale_M @ translation_M))
 
     def scatter_color(self, ind_var, dep_var, c_var, title=None):
         '''Creates a 2D scatter plot with a color scale representing the 3rd dimension.
@@ -291,7 +347,22 @@ class Transformation(analysis.Analysis):
             `palettable` library).
         title: str or None. Optional title that will appear at the top of the figure.
         '''
-        pass
+        headers = seld.data.get_headers()
+        for h in [ind_var, dep_var, c_var]:
+            if h not in headers:
+                raise ValueError(f'argument header {h} not in headers {headers}')
+
+        fig, ax = plt.subplots()
+
+        if title is not None: 
+            ax.set_title(title)
+        
+        ind_data = self.data.select_data(ind_var)
+        dep_data = self.data.select_data(dep_var)
+        c_data = self.data.select_data(c_var)
+        
+        pcm = ax.pcolormesh(ind_data, dep_data, c_data, cmap=palettable.Colorbrewer.PuOr_10)
+        fig.colorbar(pcm, ax=ax, extend='both')
 
     def heatmap(self, headers=None, title=None, cmap="gray"):
         '''Generates a heatmap of the specified variables (defaults to all). Each variable is normalized
