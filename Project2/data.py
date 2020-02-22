@@ -31,7 +31,7 @@ class Data:
             name, ext = os.path.splitext(filepath)
             if ext == '.csv':
                 self.read(filepath)
-        elif headers and types and data and header2col:
+        elif headers and types and data is not None and header2col:
             self.headers = self.headers_all = headers
             self.types = self.types_all = types
             self.data = data
