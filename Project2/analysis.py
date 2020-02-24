@@ -237,7 +237,7 @@ class Analysis:
         '''
         plt.show()
 
-    def scatter(self, ind_var, dep_var, title='', marker='.', fig_sz=(4, 4), **kwargs):
+    def scatter(self, ind_var, dep_var, title='', marker='o', fig_sz=(4, 4), **kwargs):
         '''Creates a simple scatter plot with "x" variable in the dataset `ind_var` and
         "y" variable in the dataset `dep_var`. Both `ind_var` and `dep_var` should be strings
         in `self.headers`.
@@ -268,6 +268,8 @@ class Analysis:
         fig, plot = plt.subplots(figsize=fig_sz, subplot_kw=kwargs)
         fig.suptitle(title)
         plot.scatter(x, y, marker = marker)
+        plot.set_xlabel(ind_var)
+        plot.set_ylabel(dep_var)
         
         return (x, y)
 

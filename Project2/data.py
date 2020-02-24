@@ -31,9 +31,11 @@ class Data:
             name, ext = os.path.splitext(filepath)
             if ext == '.csv':
                 self.read(filepath)
-        elif headers and types and data is not None and header2col:
+        elif headers and data is not None and header2col:
+            if not len(headers) == len(header2col) or not len(headers) == data.shape[1]:
+                raise ValueError(f'it should be len(headers) {len(headers)} == len(header2col) {len(header2col)} == data.shape[1] {data.shape[1]}')
             self.headers = self.headers_all = headers
-            self.types = self.types_all = types
+            self.types = self.types_all = ['numeric' for _ in range(len(headers))]
             self.data = data
             self.header2col = header2col
 
@@ -159,6 +161,7 @@ class Data:
         if return_all:
             return self.headers_all
         else:
+            # print(self.headers)
             return self.headers 
 
     def get_types(self, return_all=False):
