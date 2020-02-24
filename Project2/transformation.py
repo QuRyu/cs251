@@ -353,17 +353,15 @@ class Transformation(analysis.Analysis):
         ndarray. shape=(N, num_proj_vars). The normalized version of the projected dataset.
         '''
         headers = self.data.get_headers()
-        mins = super().min(headers)
-        maxs = super().max(headers)
+        data = self.data.select_data(headers) 
 
-        global_min = np.min(mins)
-        global_max = np.max(maxs)
-        dist = global_max - global_min 
+        global_min = np.min(data)
+        global_max = np.max(data)
 
-        self.translate(headers, [-global_min for _ in range(len(headers))])
-        result = self.scale(headers, [1/dist for _ in range(len(headers))])
+        data = (data - global_min) / (global_max - global_min)
+        self.update_data(data)
 
-        return result 
+        return data 
 
     def normalize_together_zscore(self):
         headers = self.data.get_headers()
@@ -387,9 +385,12 @@ class Transformation(analysis.Analysis):
         mins, maxes = self.range(self.data.get_headers())
         ranges = maxes - mins 
 
-        self.translate(headers, -mins)
-        result = self.scale(headers, 1/ranges)
-        return result 
+        data = self.data.select_data(headers)
+
+        data = (data - mins) / (maxes - mins)
+        self.update_data(data)
+        
+        return data 
 
     def normalize_separately_zscore(self):
         headers = self.data.get_headers()
