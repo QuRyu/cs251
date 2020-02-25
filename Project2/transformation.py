@@ -384,6 +384,13 @@ class Transformation(analysis.Analysis):
         return data 
 
     def normalize_together_zscore(self):
+        '''Normalize all variables in the projected dataset together by translating the global mean
+        (across all variables) to zero and scaling the global standard deviation (across all variables) to one.
+
+        Returns:
+        -----------
+        ndarray. shape=(N, num_proj_vars). The normalized version of the projected dataset.
+        '''
         headers = self.data.get_headers()
         std = np.sqrt(np.var(self.data.data))
         mean = np.mean(self.data.data)
@@ -411,6 +418,13 @@ class Transformation(analysis.Analysis):
         return data 
 
     def normalize_separately_zscore(self):
+        '''Normalize each variable separately by translating its local mean and scaling
+        by one over its local standard deviation. 
+
+        Returns:
+        -----------
+        ndarray. shape=(N, num_proj_vars). The normalized version of the projected dataset.
+        '''
         headers = self.data.get_headers()
         stds = self.std(headers)
         means = self.mean(headers)
@@ -455,6 +469,18 @@ class Transformation(analysis.Analysis):
         bar.set_label(c_var)
 
     def scatter_color_3D(self, ind_var, dep_var, z_var, c_var=None, size_var=None, title=None):
+        '''Creates a 3D scatter plot with a color scale representing the 4th
+        dimension and marker size representing the 5th dimension.
+
+        Parameters:
+        -----------
+        ind_var: str. Header of the variable that will be plotted along the X axis.
+        dep_var: Header of the variable that will be plotted along the Y axis.
+        z_var: Header of the variable that will be plotted along the Z axis.
+        c_var: Header of the variable that will be plotted along the color axis.
+        size_var: Header of the variable that will be plotted to change marker size.
+        title: str or None. Optional title that will appear at the top of the figure.
+        '''
         headers = self.data.get_headers()
         for h in [ind_var, dep_var, z_var, c_var, size_var]:
             if not h is None and h not in headers:
