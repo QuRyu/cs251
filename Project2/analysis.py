@@ -237,7 +237,7 @@ class Analysis:
         '''
         plt.show()
 
-    def scatter(self, ind_var, dep_var, title='', marker='.', fig_sz=(4, 4), **kwargs):
+    def scatter(self, ind_var, dep_var, title='', marker='o', fig_sz=(4, 4), **kwargs):
         '''Creates a simple scatter plot with "x" variable in the dataset `ind_var` and
         "y" variable in the dataset `dep_var`. Both `ind_var` and `dep_var` should be strings
         in `self.headers`.
@@ -268,6 +268,8 @@ class Analysis:
         fig, plot = plt.subplots(figsize=fig_sz, subplot_kw=kwargs)
         fig.suptitle(title)
         plot.scatter(x, y, marker = marker)
+        plot.set_xlabel(ind_var)
+        plot.set_ylabel(dep_var)
         
         return (x, y)
 
@@ -304,18 +306,22 @@ class Analysis:
         M = len(data_vars)
         data = self.data.select_data(data_vars)
         fig, subplots = plt.subplots(nrows=M, ncols=M,
-                sharex='col', sharey='row', figsize=fig_sz)
+                sharex='row', sharey='col', figsize=fig_sz)
 
         fig.suptitle(title)
 
         for i in range(M):
             for j in range(M):
                 subplots[i, j].scatter(data[:, j], data[:, i])
+                subplots[i, j].xaxis.set_visible(False)
+                subplots[i, j].yaxis.set_visible(False)
 
                 if i == M-1: # last row 
                     subplots[i, j].set_xlabel(data_vars[j])
+                    subplots[i, j].xaxis.set_visible(True)
                 if j == 0: # first column 
                     subplots[i, j].set_ylabel(data_vars[i])
+                    subplots[i, j].yaxis.set_visible(True)
 
         return (fig, subplots)
 

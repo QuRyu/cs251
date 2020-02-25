@@ -14,7 +14,7 @@ import time
 Types = ['numeric', 'string', 'enum', 'date']
 
 class Data:
-    def __init__(self, filepath=None, headers=None, types = None, data=None, header2col=None):
+    def __init__(self, filepath=None, headers=None, types=None, data=None, header2col=None):
         '''Data object constructor
         TODO:
         - Declare/initialize the following instance variables:
@@ -31,9 +31,11 @@ class Data:
             name, ext = os.path.splitext(filepath)
             if ext == '.csv':
                 self.read(filepath)
-        elif headers and types and data and header2col:
+        elif headers and data is not None and header2col:
+            if not len(headers) == len(header2col) or not len(headers) == data.shape[1]:
+                raise ValueError(f'it should be len(headers) {len(headers)} == len(header2col) {len(header2col)} == data.shape[1] {data.shape[1]}')
             self.headers = self.headers_all = headers
-            self.types = self.types_all = types
+            self.types = self.types_all = ['numeric' for _ in range(len(headers))]
             self.data = data
             self.header2col = header2col
 
@@ -159,6 +161,7 @@ class Data:
         if return_all:
             return self.headers_all
         else:
+            # print(self.headers)
             return self.headers 
 
     def get_types(self, return_all=False):
@@ -336,28 +339,6 @@ class Data:
             rows = range(self.get_num_samples())
         return self.all_data[data_type][np.ix_(rows, indices)]
             
-    def get_subset_data(self, headers):
-        '''Return data samples corresponding to the variable names in `headers`.
-
-        For example, if self.headers = ['a', 'b', 'c'] and we pass in header = 'b', we return
-        a new `Data` object containing column #2 of self.data. 
-
-        Parameters:
-        -----------
-            headers: Python list of str. Header names to take from self.data
-
-        Returns:
-        -----------
-        Data. shape=(num_data_samps, len(headers)) 
-            Subset of data from the variables `headers` 
-        '''
-        data = self.select_data(headers).copy()
-        headers = self.headers
-        types = self.types
-        header2col = self.header2col
-
-        return Data(headers=headers, types=types, data=data, header2col=header2col)
-
     def _read_headers(self, headers):
         headers = list(map(lambda s: s.strip(), headers))
         self.headers = headers
