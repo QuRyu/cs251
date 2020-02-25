@@ -392,13 +392,14 @@ class Transformation(analysis.Analysis):
         ndarray. shape=(N, num_proj_vars). The normalized version of the projected dataset.
         '''
         headers = self.data.get_headers()
-        std = np.sqrt(np.var(self.data.data))
-        mean = np.mean(self.data.data)
+        data = self.data.data 
+        std = np.sqrt(np.var(data))
+        mean = np.mean(data)
 
-        self.translate(headers, [-mean for _ in range(len(headers))])
-        result = self.scale(headers, [1/std for _ in range(len(headers))])
+        data = (data - mean)/std
+        self.data = self.update_data(data)
 
-        return result 
+        return data  
 
     def normalize_separately(self):
         '''Normalize each variable separately by translating its local minimum to zero and scaling
@@ -426,14 +427,14 @@ class Transformation(analysis.Analysis):
         ndarray. shape=(N, num_proj_vars). The normalized version of the projected dataset.
         '''
         headers = self.data.get_headers()
+        data = self.data.data 
         stds = self.std(headers)
         means = self.mean(headers)
 
-        self.translate(headers, -means)
-        result = self.scale(headers, 1/stds)
-        return result 
+        data = (data - means)/stds 
+        self.data = self.update_data(data)
 
-
+        return data  
 
     def scatter_color(self, ind_var, dep_var, c_var, title=None, z_var=None, size_var=None):
         '''Creates a 2D scatter plot with a color scale representing the 3rd dimension.
@@ -509,7 +510,7 @@ class Transformation(analysis.Analysis):
 
         Returns
         -------
-        result : ndarray. shape=(M, N)
+        ndarray. shape=(M, N)
             Contains the values in scaled by the 1/standard deviation
             of each column.'
         '''
@@ -519,6 +520,27 @@ class Transformation(analysis.Analysis):
         self.data = self.update_data(result)
 
         return result 
+    
+    def filter(self, header, condition):
+        ''' Filter a variable based on a condition
+
+        Parameters:
+        -----------
+        header: str. Header of the variable to be filtered.
+        condition: function. condition to apply to the variable. 
+
+        Returns
+        -------
+        ndarray. shape=(M, N)
+            Original data before `fitler` is applied.
+        '''
+        old_data = self.data.data 
+        header_idx = self.data.get_header_indices([header])[0]
+
+        new_data = old_data[condition(old_data[:, header_idx])]
+        self.data = self.update_data(new_data)
+
+        return old_data 
 
     def heatmap(self, headers=None, title=None, cmap="gray"):
         '''Generates a heatmap of the specified variables (defaults to all). Each variable is normalized
