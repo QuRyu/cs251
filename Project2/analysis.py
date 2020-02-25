@@ -5,7 +5,6 @@ CS 251 Data Analysis Visualization, Spring 2020
 '''
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy import stats
 
 
 class Analysis:
@@ -209,6 +208,7 @@ class Analysis:
         modes: ndarray. shape=(len(headers),)
             Mode for each of the selected header variables
         '''
+        from scipy import stats
         return stats.mode(self.data.select_data(headers, rows), axis=0)
 
     def skew(self, headers, rows=[]):
@@ -228,6 +228,7 @@ class Analysis:
         skewness: ndarray. shape=(len(headers),)
             Mode for each of the selected header variables
         '''
+        from scipy import stats
         return stats.skew(self.data.select_data(headers, rows), axis=0)
 
     def show(self):
