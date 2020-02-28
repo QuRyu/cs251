@@ -5,6 +5,7 @@ CS 251 Data Analysis Visualization, Spring 2020
 '''
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 import analysis
 import data
 from palettable import colorbrewer 
@@ -118,7 +119,7 @@ class Transformation(analysis.Analysis):
             raise ValueError(f'length of headers {headers} should be equal to length of magnitudes {magnitudes}')
 
         data_headers = self.data.get_headers()
-        
+
         N = self.data.get_num_dims()
         M = np.eye(N+1)
         header2col = self.data.get_mappings()
@@ -152,7 +153,7 @@ class Transformation(analysis.Analysis):
             raise ValueError(f'length of headers {headers} should be equal to length of magnitudes {magnitudes}')
 
         data_headers = self.data.get_headers()
-        
+
         N = self.data.get_num_dims()
         M = np.eye(N+1)
         header2col = self.data.get_mappings()
@@ -183,14 +184,14 @@ class Transformation(analysis.Analysis):
 
         M = np.eye(4)
         header2col = self.data.get_mappings()
-        
+
         angel = np.radians(degrees)
 
         if len(header2col) != 3:
             raise ValueError(f'three variables should be projected but actually {len(header2col)}')
         elif header not in header2col:
             raise ValueError(f'header {header} should be one of headers {self.data.get_headers()}')
-        
+
         if header2col[header] == 0:
             M[1, 1] = np.cos(angel)
             M[1, 2] = -np.sin(angel)
@@ -209,7 +210,7 @@ class Transformation(analysis.Analysis):
 
         return M 
 
-    def rotation_matrix_2d(self, headers, degrees): 
+    def rotation_matrix_2d(self, degrees): 
         '''Make an 2-D homogeneous rotation matrix for rotating the projected data about the ONE
         axis/variable `header`.
 
@@ -231,8 +232,6 @@ class Transformation(analysis.Analysis):
 
         if len(header2col) != 2:
             raise ValueError(f'two variables should be projected but actually {len(header2col)}')
-        elif header not in header2col:
-            raise ValueError(f'header {header} should be one of headers {self.data.get_headers()}')
         
         M[0, 0] = np.cos(angel)
         M[0, 1] = -np.sin(angel)
@@ -344,6 +343,27 @@ class Transformation(analysis.Analysis):
 
         return result 
 
+    def rotate_2d(self, degrees):
+        '''Rotates the projected data about the variable `header` by the angle (in degrees)
+        `degrees`.
+
+        Parameters:
+        -----------
+        header: str. Specifies the variable about which the projected dataset should be rotated.
+        degrees: float. Angle (in degrees) by which the projected dataset should be rotated.
+
+        Returns:
+        -----------
+        ndarray. shape=(N, num_proj_vars). The rotated data (with all variables in the projected).
+            dataset. NOTE: There should be NO homogenous coordinate!
+
+        '''
+        M = self.rotation_matrix_2d(degrees)
+        result = self.drop_homogeneous_coord(self.transform(M))
+        self.data = self.update_data(result) 
+
+        return result 
+
     def normalize_together(self):
         '''Normalize all variables in the projected dataset together by translating the global minimum
         (across all variables) to zero and scaling the global range (across all variables) to one.
@@ -359,7 +379,7 @@ class Transformation(analysis.Analysis):
         global_max = np.max(data)
 
         data = (data - global_min) / (global_max - global_min)
-        self.update_data(data)
+        self.data = self.update_data(data)
 
         return data 
 
@@ -383,12 +403,10 @@ class Transformation(analysis.Analysis):
         '''
         headers = self.data.get_headers()
         mins, maxes = self.range(self.data.get_headers())
-        ranges = maxes - mins 
-
         data = self.data.select_data(headers)
 
         data = (data - mins) / (maxes - mins)
-        self.update_data(data)
+        self.data = self.update_data(data)
         
         return data 
 
@@ -442,7 +460,8 @@ class Transformation(analysis.Analysis):
             if not h is None and h not in headers:
                 raise ValueError(f'argument header {h} not in headers {headers}')
 
-        fig, ax = plt.subplots()
+        fig= plt.figure()
+        ax = Axes3D(fig)
 
         if title is not None: 
             ax.set_title(title)
@@ -455,8 +474,9 @@ class Transformation(analysis.Analysis):
 
         pos = ax.scatter(ind_data, dep_data, z_data, c=c_data, # s=size_data,
                 cmap=colorbrewer.sequential.Greys_5.mpl_colormap)
-        bar = fig.colorbar(pos, ax=ax)
-        bar.set_label(c_var)
+        if c_var is not None: 
+            bar = fig.colorbar(pos, ax=ax)
+            bar.set_label(c_var)
 
     def whiten(self):
         '''Normalize a group of observations on a per feature basis
