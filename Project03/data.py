@@ -107,6 +107,7 @@ class Data:
                         'date': self.date_data, 'string': self.str_data}
                 self.all_header2col = {'numeric': self.header2col, 'enum': self.header2col_enum, 
                         'date': self.header2col_date, 'string': self.header2col_str}
+                self.fp = filepath
             except: 
                 e = sys.exc_info()[1]
                 print(str(e))
@@ -123,7 +124,9 @@ class Data:
         '''
 
         str_list = []
-        str_list.append('Headers\n')
+        N, M = self.data.shape
+        str_list.append(f'{self.filepath} ({N}x{M})\n')
+        str_list.append('Headers:\n')
         for header in self.headers:
             str_list.append(header)
             str_list.append(' ')
@@ -135,7 +138,7 @@ class Data:
             str_list.append(' ')
         str_list.append('\n')
 
-        str_list.append(str(self.data))
+        str_list.append(str(self.data[:5, :]))
 
         return ''.join(str_list)
 
