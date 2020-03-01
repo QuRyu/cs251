@@ -31,7 +31,7 @@ class LinearRegression(analysis.Analysis):
         self.dep_var = None
 
         # A: ndarray. shape=(num_data_samps, num_ind_vars)
-        #   Coefficent matrix for independent (predictor) variables in linear regression
+        #   Matrix for independent (predictor) variables in linear regression
         self.A = None
 
         # y: ndarray. shape=(num_data_samps, 1)
@@ -52,6 +52,10 @@ class LinearRegression(analysis.Analysis):
 
         # p: int. Polynomial degree of regression model (Week 2)
         self.p = 1
+
+    def add_homogenous_coord(self, A):
+        N = A.shape[0]
+        return np.hstack((A, np.ones(N).reshape(N, 1)))
 
     def linear_regression(self, ind_vars, dep_var, method='scipy'):
         '''Performs a linear regression on the independent (predictor) variable(s) `ind_vars`
@@ -78,7 +82,14 @@ class LinearRegression(analysis.Analysis):
 
         NOTE: Use other methods in this class where ever possible (do not write the same code twice!)
         '''
-        pass
+        self.ind_vars = ind_vars
+        self.dep_var = dep_var
+
+        x = self.data.select_data(ind_vars)
+        y = self.data.select_data(dep_var)
+
+        if method == 'scipy':
+            self.linear_regression_scipy(x, y)
 
     def linear_regression_scipy(self, A, y):
         '''Performs a linear regression using scipy's built-in least squares solver (scipy.linalg.lstsq).
@@ -96,7 +107,21 @@ class LinearRegression(analysis.Analysis):
         c: ndarray. shape=(num_ind_vars+1,)
             Linear regression slope coefficients for each independent var PLUS the intercept term
         '''
-        pass
+        self.A = A 
+        self.y = y 
+
+        N = A.shape[0]
+        A = np.hstack((A, np.ones(N).reshape(N, 1)))
+        c, residuals, _, _ = scipy.linalg.lstsq(A, y)
+
+        self.slope = c[:-1, :]
+        self.intercept = c[-1][0]
+
+        predicted = self.predict(self.slope, self.intercept)
+        self.residuals = self.compute_residuals(predicted)
+        self.R2 = self.r_squared(predicted)
+
+        return c
 
     def linear_regression_normal(self, A, y):
         '''Performs a linear regression using the normal equations.
@@ -114,7 +139,7 @@ class LinearRegression(analysis.Analysis):
         Returns
         -----------
         c: ndarray. shape=(num_ind_vars+1,)
-            Linear regression slope coefficients for each independent var AND the intercept term
+        Linear regression slope coefficients for each independent var AND the intercept term
         '''
         pass
 
@@ -194,7 +219,12 @@ class LinearRegression(analysis.Analysis):
 
         NOTE: You can write this method without any loops!
         '''
-        pass
+        data = X if X is not None else self.A
+        if slope.shape[0] == 1: 
+            return data * slope + intercept
+        else:
+            return data @ slope + intercept
+            
 
     def r_squared(self, y_pred):
         '''Computes the R^2 quality of fit statistic
@@ -209,7 +239,11 @@ class LinearRegression(analysis.Analysis):
         R2: float.
             The R^2 statistic
         '''
-        pass
+        E = np.sum(self.compute_residuals(y_pred) ** 2)
+        mean = np.sum(self.y)/y_pred.shape[0] 
+        S = np.sum((self.y - mean) ** 2)
+
+        return 1 - E/S
 
     def compute_residuals(self, y_pred):
         '''Determines the residual values from the linear regression model
@@ -225,7 +259,7 @@ class LinearRegression(analysis.Analysis):
             Difference between the y values and the ones predicted by the regression model at the 
             data samples
         '''
-        pass
+        return self.y - y_pred
 
     def mean_sse(self, X=None):
         '''Computes the mean sum-of-squares error in the predicted y compared the actual y values.
