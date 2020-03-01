@@ -90,6 +90,8 @@ class LinearRegression(analysis.Analysis):
 
         if method == 'scipy':
             self.linear_regression_scipy(x, y)
+        elif method == 'normal':
+            self.linear_regression_normal(x, y)
 
     def linear_regression_scipy(self, A, y):
         '''Performs a linear regression using scipy's built-in least squares solver (scipy.linalg.lstsq).
@@ -111,11 +113,19 @@ class LinearRegression(analysis.Analysis):
         self.y = y 
 
         N = A.shape[0]
+        single_col = False 
+        if len(A.shape) == 1:
+            A = A.reshape((N, 1))
+            single_col = True  # if A has only one column  
         A = np.hstack((A, np.ones(N).reshape(N, 1)))
         c, residuals, _, _ = scipy.linalg.lstsq(A, y)
 
-        self.slope = c[:-1, :]
-        self.intercept = c[-1][0]
+        if single_col:
+            self.slope = np.array([c[0]])
+            self.intercept = c[1] 
+        else:
+            self.slope = c[:-1, :]
+            self.intercept = c[-1][0]
 
         predicted = self.predict(self.slope, self.intercept)
         self.residuals = self.compute_residuals(predicted)
@@ -141,7 +151,25 @@ class LinearRegression(analysis.Analysis):
         c: ndarray. shape=(num_ind_vars+1,)
         Linear regression slope coefficients for each independent var AND the intercept term
         '''
-        pass
+        self.A = A 
+        self.y = y 
+        N = A.shape[0]
+
+        if len(A.shape) == 1: 
+            A = A.reshape((N, 1))
+        A = np.hstack((A, np.ones(N).reshape((N, 1))))
+        c = np.linalg.inv(A.T @ A) @ A.T @ y
+
+        self.slope = c[:-1]
+
+        self.intercept = c[-1]
+
+        predicted = self.predict(self.slope, self.intercept)
+        self.residuals = self.compute_residuals(predicted)
+        self.R2 = self.r_squared(predicted)
+
+        return c
+
 
     def linear_regression_qr(self, A, y):
         '''Performs a linear regression using the QR decomposition
@@ -302,7 +330,17 @@ class LinearRegression(analysis.Analysis):
         - Plot the line on top of the scatterplot.
         - Make sure that your plot has a title (with R^2 value in it)
         '''
-        pass
+        x, y = super().scatter(ind_var, dep_var) 
+        slope = self.slope[ind_var_index][0] 
+
+        fitted_line_x = np.linspace(np.min(x), np.max(x), 100)
+        fitted_line_y = fitted_line_x * slope + self.intercept
+
+        plt.plot(fitted_line_x, fitted_line_y, 'r')
+        plt.legend(['regression', 'data'])
+        plt.title(f'{title}, R2 = {self.R2: .2f}')
+
+
 
     def pair_plot(self, data_vars, fig_sz=(12, 12)):
         '''Makes a pair plot with regression lines in each panel.
@@ -324,7 +362,33 @@ class LinearRegression(analysis.Analysis):
         every ind and dep variable pair.
         - Make sure that each plot has a title (with R^2 value in it)
         '''
-        pass
+        fig, axes = super().pair_plot(data_vars, fig_sz)
+
+        N = len(data_vars)
+        data = self.data.select_data(data_vars)
+        for i in range(N):
+            for j in range(N):
+                if not i == j:
+                    A = data[:, j]
+                    y = data[:, i]
+                    c = self.linear_regression_scipy(A, y)
+
+                    predicted_y = A * c[0] + c[1]
+                    R2 = self.r_squared(predicted_y)
+
+                    fitted_x = np.linspace(np.min(A), np.max(A), 100)
+                    fitted_y = fitted_x * c[0] + c[1] 
+
+                    axes[i, j].plot(fitted_x, fitted_y, 'r')
+                    axes[i, j].set_title(f'{R2: .2f}')
+                else: # i == j 
+                    axes[i, j].clear()
+                    axes[i, j].hist(data[:, j])
+
+        fig.subplots_adjust(hspace=0.3)
+        
+
+
 
     def make_polynomial_matrix(self, A, p):
         '''Takes an independent variable data column vector `A and transforms it into a matrix appropriate
