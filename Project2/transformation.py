@@ -384,14 +384,22 @@ class Transformation(analysis.Analysis):
         return data 
 
     def normalize_together_zscore(self):
+        '''Normalize all variables in the projected dataset together by translating the global mean
+        (across all variables) to zero and scaling the global standard deviation (across all variables) to one.
+
+        Returns:
+        -----------
+        ndarray. shape=(N, num_proj_vars). The normalized version of the projected dataset.
+        '''
         headers = self.data.get_headers()
-        std = np.sqrt(np.var(self.data.data))
-        mean = np.mean(self.data.data)
+        data = self.data.data 
+        std = np.sqrt(np.var(data))
+        mean = np.mean(data)
 
-        self.translate(headers, [-mean for _ in range(len(headers))])
-        result = self.scale(headers, [1/std for _ in range(len(headers))])
+        data = (data - mean)/std
+        self.data = self.update_data(data)
 
-        return result 
+        return data  
 
     def normalize_separately(self):
         '''Normalize each variable separately by translating its local minimum to zero and scaling
@@ -411,15 +419,22 @@ class Transformation(analysis.Analysis):
         return data 
 
     def normalize_separately_zscore(self):
+        '''Normalize each variable separately by translating its local mean and scaling
+        by one over its local standard deviation. 
+
+        Returns:
+        -----------
+        ndarray. shape=(N, num_proj_vars). The normalized version of the projected dataset.
+        '''
         headers = self.data.get_headers()
+        data = self.data.data 
         stds = self.std(headers)
         means = self.mean(headers)
 
-        self.translate(headers, -means)
-        result = self.scale(headers, 1/stds)
-        return result 
+        data = (data - means)/stds 
+        self.data = self.update_data(data)
 
-
+        return data  
 
     def scatter_color(self, ind_var, dep_var, c_var, title=None, z_var=None, size_var=None):
         '''Creates a 2D scatter plot with a color scale representing the 3rd dimension.
@@ -455,6 +470,18 @@ class Transformation(analysis.Analysis):
         bar.set_label(c_var)
 
     def scatter_color_3D(self, ind_var, dep_var, z_var, c_var=None, size_var=None, title=None):
+        '''Creates a 3D scatter plot with a color scale representing the 4th
+        dimension and marker size representing the 5th dimension.
+
+        Parameters:
+        -----------
+        ind_var: str. Header of the variable that will be plotted along the X axis.
+        dep_var: Header of the variable that will be plotted along the Y axis.
+        z_var: Header of the variable that will be plotted along the Z axis.
+        c_var: Header of the variable that will be plotted along the color axis.
+        size_var: Header of the variable that will be plotted to change marker size.
+        title: str or None. Optional title that will appear at the top of the figure.
+        '''
         headers = self.data.get_headers()
         for h in [ind_var, dep_var, z_var, c_var, size_var]:
             if not h is None and h not in headers:
@@ -469,10 +496,10 @@ class Transformation(analysis.Analysis):
         ind_data = self.data.select_data(ind_var)
         dep_data = self.data.select_data(dep_var)
         z_data = self.data.select_data(z_var)
-        c_data = None if c_var is None else self.data.select_data(c_var)
-        size_data = None if size_var is None else self.data.select_data(size_var)
+        c_data = None if c_var is None else np.squeeze(self.data.select_data(c_var))
+        size_data = None if size_var is None else self.data.select_data(size_var) ** 2 
 
-        pos = ax.scatter(ind_data, dep_data, z_data, c=c_data, # s=size_data,
+        pos = ax.scatter(ind_data, dep_data, z_data, c=c_data, s=size_data,
                 cmap=colorbrewer.sequential.Greys_5.mpl_colormap)
         if c_var is not None: 
             bar = fig.colorbar(pos, ax=ax)
@@ -483,7 +510,7 @@ class Transformation(analysis.Analysis):
 
         Returns
         -------
-        result : ndarray. shape=(M, N)
+        ndarray. shape=(M, N)
             Contains the values in scaled by the 1/standard deviation
             of each column.'
         '''
@@ -493,6 +520,27 @@ class Transformation(analysis.Analysis):
         self.data = self.update_data(result)
 
         return result 
+    
+    def filter(self, header, condition):
+        ''' Filter a variable based on a condition
+
+        Parameters:
+        -----------
+        header: str. Header of the variable to be filtered.
+        condition: function. condition to apply to the variable. 
+
+        Returns
+        -------
+        ndarray. shape=(M, N)
+            Original data before `fitler` is applied.
+        '''
+        old_data = self.data.data 
+        header_idx = self.data.get_header_indices([header])[0]
+
+        new_data = old_data[condition(old_data[:, header_idx])]
+        self.data = self.update_data(new_data)
+
+        return old_data 
 
     def heatmap(self, headers=None, title=None, cmap="gray"):
         '''Generates a heatmap of the specified variables (defaults to all). Each variable is normalized
