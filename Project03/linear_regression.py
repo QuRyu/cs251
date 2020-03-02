@@ -267,9 +267,9 @@ class LinearRegression(analysis.Analysis):
         R2: float.
             The R^2 statistic
         '''
-        E = np.sum(self.compute_residuals(y_pred) ** 2)
+        E = np.linalg.norm(self.compute_residuals(y_pred), 2) ** 2 
         mean = np.sum(self.y)/y_pred.shape[0] 
-        S = np.sum((self.y - mean) ** 2)
+        S = np.linalg.norm((self.y - mean), 2) ** 2 
 
         return 1 - E/S
 
@@ -305,7 +305,18 @@ class LinearRegression(analysis.Analysis):
 
         Hint: Make use of self.compute_residuals
         '''
-        pass
+        data = X if X is not None else self.A 
+
+        if self.slope.shape[0] == 1:
+            predicted = data * self.slope + self.intercept
+        else:
+            predicted = data @ self.slope + self.intercept
+
+        N = predicted.shape[0]
+        msse = np.linalg.norm(self.y - predicted, 2) ** 2 / N
+
+        return msse 
+
 
     def scatter(self, ind_var, dep_var, title, ind_var_index=0):
         '''Creates a scatter plot with a regression line to visualize the model fit.
