@@ -102,6 +102,11 @@ class LinearRegression(analysis.Analysis):
             self.linear_regression_scipy(x, y)
         elif method == 'normal':
             self.linear_regression_normal(x, y)
+        elif method == 'qr':
+            A = self.add_homogenous_coord(x)
+            self.linear_regression_qr(A, y)
+        else:
+            raise ValueError(f'method {method} not supported')
 
     def linear_regression_scipy(self, A, y):
         '''Performs a linear regression using scipy's built-in least squares solver (scipy.linalg.lstsq).
@@ -176,7 +181,7 @@ class LinearRegression(analysis.Analysis):
 
         Parameters:
         -----------
-        A: ndarray. shape=(num_data_samps, num_ind_vars).
+        A: ndarray. shape=(num_data_samps, num_ind_vars+1).
             Data matrix for independent variables.
         y: ndarray. shape=(num_data_samps, 1).
             Data column for dependent variable.
@@ -189,7 +194,24 @@ class LinearRegression(analysis.Analysis):
         NOTE: You should not compute any matrix inverses! Check out scipy.linalg.solve_triangular
         to backsubsitute to solve for the regression coefficients `c`.
         '''
-        pass
+        M = A.shape[1] 
+        self.A = np.delete(A, M-1, axis=1)
+        self.y = y
+
+        Q, R = self.qr_decomposition(A)
+        c = scipy.linalg.solve_triangular(R, Q.T @ y)
+        
+        single_col = len(A.shape) == 1
+        if single_col:
+            self.slope = np.array([[c[0]]])
+            self.intercept = c[-1] 
+        else:
+            self.slope = c[:-1] 
+            self.intercept = c[-1] 
+            
+        self.set_params()
+
+        return c
 
     def qr_decomposition(self, A):
         '''Performs a QR decomposition on the matrix A. Make column vectors orthogonal relative
@@ -219,7 +241,17 @@ class LinearRegression(analysis.Analysis):
         Normalize each current column after orthogonalizing.
         - R is found by equation summarized in notebook
         '''
-        pass
+        N, M = A.shape
+        Q = A.copy()
+
+        for i in range(M):
+            for j in range(i):
+                Q[:, i] -= (A[:, i].T @ Q[:, j]) * Q[:, j]
+            Q[:, i] /= np.linalg.norm(Q[:, i])
+
+        R = Q.T @ A 
+
+        return Q, R
 
     def predict(self, slope, intercept, X=None):
         '''Use fitted linear regression model to predict the values of data matrix `X`.
@@ -260,8 +292,8 @@ class LinearRegression(analysis.Analysis):
         R2: float.
             The R^2 statistic
         '''
-        E = np.linalg.norm(self.compute_residuals(y_pred), 2) ** 2 
-        mean = np.sum(self.y)/y_pred.shape[0] 
+        residuals = self.compute_residuals(y_pred)
+        E = np.linalg.norm(residuals) ** 2 
         mean = np.mean(self.y)
         S = np.linalg.norm((self.y - mean), 2) ** 2 
 
@@ -300,14 +332,11 @@ class LinearRegression(analysis.Analysis):
         Hint: Make use of self.compute_residuals
         '''
         data = X if X is not None else self.A 
+        N = data.shape[0]
 
-        if self.slope.shape[0] == 1:
-            predicted = data * self.slope + self.intercept
-        else:
-            predicted = data @ self.slope + self.intercept
-
-        N = predicted.shape[0]
-        msse = np.linalg.norm(self.y - predicted, 2) ** 2 / N
+        y_pred = self.predict(self.slope, self.intercept, data)
+        residuals = self.compute_residuals(y_pred)
+        msse = (np.linalg.norm(residuals) ** 2) / N
 
         return msse 
 
@@ -377,8 +406,8 @@ class LinearRegression(analysis.Analysis):
                     A = data[:, j]
                     self.linear_regression(data_vars[j], data_vars[i])
 
-                    fitted_x = np.linspace(np.min(A), np.max(A), 100).reshape([100, 1])
-                    fitted_y = self.predict(self.slope, self.intercept, fitted_x)
+                    fitted_x = np.linspace(np.min(A), np.max(A), 100)
+                    fitted_y = fitted_x * self.slope[0] + self.intercept
 
                     axes[i, j].plot(fitted_x, fitted_y, 'r')
                     axes[i, j].set_title(f'R2: {self.R2: .2f}')
