@@ -55,7 +55,14 @@ class LinearRegression(analysis.Analysis):
 
     def add_homogenous_coord(self, A):
         N = A.shape[0]
-        return np.hstack((A, np.ones(N).reshape(N, 1)))
+        if len(A.shape) == 1:
+            A = A.copy().reshape(N, 1)
+        return np.hstack([A, np.ones([N, 1])])
+
+    def set_params(self): 
+        predicted = self.predict(self.slope, self.intercept)
+        self.residuals = self.compute_residuals(predicted)
+        self.R2 = self.r_squared(predicted)
 
     def linear_regression(self, ind_vars, dep_var, method='scipy'):
         '''Performs a linear regression on the independent (predictor) variable(s) `ind_vars`
@@ -88,6 +95,9 @@ class LinearRegression(analysis.Analysis):
         x = self.data.select_data(ind_vars)
         y = self.data.select_data(dep_var)
 
+        if len(ind_vars) == 1: 
+            x = x.reshape([x.shape[0], 1])
+
         if method == 'scipy':
             self.linear_regression_scipy(x, y)
         elif method == 'normal':
@@ -112,24 +122,14 @@ class LinearRegression(analysis.Analysis):
         self.A = A 
         self.y = y 
 
-        N = A.shape[0]
-        single_col = False 
-        if len(A.shape) == 1:
-            A = A.reshape((N, 1))
-            single_col = True  # if A has only one column  
-        A = np.hstack((A, np.ones(N).reshape(N, 1)))
+        N, M = A.shape
+        A = self.add_homogenous_coord(A)
         c, residuals, _, _ = scipy.linalg.lstsq(A, y)
 
-        if single_col:
-            self.slope = np.array([c[0]])
-            self.intercept = c[1] 
-        else:
-            self.slope = c[:-1, :]
-            self.intercept = c[-1][0]
+        self.slope = np.array([c[:-1]]).reshape([M, 1])
+        self.intercept = c[-1][0]
 
-        predicted = self.predict(self.slope, self.intercept)
-        self.residuals = self.compute_residuals(predicted)
-        self.R2 = self.r_squared(predicted)
+        self.set_params()
 
         return c
 
@@ -153,20 +153,16 @@ class LinearRegression(analysis.Analysis):
         '''
         self.A = A 
         self.y = y 
-        N = A.shape[0]
 
-        if len(A.shape) == 1: 
-            A = A.reshape((N, 1))
-        A = np.hstack((A, np.ones(N).reshape((N, 1))))
+        N, M = A.shape
+
+        A = self.add_homogenous_coord(A)
         c = np.linalg.inv(A.T @ A) @ A.T @ y
 
-        self.slope = c[:-1]
-
+        self.slope = np.array([c[:-1]]).reshape([M, 1])
         self.intercept = c[-1]
 
-        predicted = self.predict(self.slope, self.intercept)
-        self.residuals = self.compute_residuals(predicted)
-        self.R2 = self.r_squared(predicted)
+        self.set_params()
 
         return c
 
@@ -248,10 +244,7 @@ class LinearRegression(analysis.Analysis):
         NOTE: You can write this method without any loops!
         '''
         data = X if X is not None else self.A
-        if slope.shape[0] == 1: 
-            return data * slope + intercept
-        else:
-            return data @ slope + intercept
+        return data @ slope + intercept
             
 
     def r_squared(self, y_pred):
@@ -269,6 +262,7 @@ class LinearRegression(analysis.Analysis):
         '''
         E = np.linalg.norm(self.compute_residuals(y_pred), 2) ** 2 
         mean = np.sum(self.y)/y_pred.shape[0] 
+        mean = np.mean(self.y)
         S = np.linalg.norm((self.y - mean), 2) ** 2 
 
         return 1 - E/S
@@ -381,20 +375,20 @@ class LinearRegression(analysis.Analysis):
             for j in range(N):
                 if not i == j:
                     A = data[:, j]
-                    y = data[:, i]
-                    c = self.linear_regression_scipy(A, y)
+                    self.linear_regression(data_vars[j], data_vars[i])
 
-                    predicted_y = A * c[0] + c[1]
-                    R2 = self.r_squared(predicted_y)
-
-                    fitted_x = np.linspace(np.min(A), np.max(A), 100)
-                    fitted_y = fitted_x * c[0] + c[1] 
+                    fitted_x = np.linspace(np.min(A), np.max(A), 100).reshape([100, 1])
+                    fitted_y = self.predict(self.slope, self.intercept, fitted_x)
 
                     axes[i, j].plot(fitted_x, fitted_y, 'r')
-                    axes[i, j].set_title(f'{R2: .2f}')
-                else: # i == j 
+                    axes[i, j].set_title(f'R2: {self.R2: .2f}')
+                else: # i == j, diagonal  
+                    xlabel = axes[i, j].get_xlabel() 
+                    ylabel = axes[i, j].get_ylabel() 
                     axes[i, j].clear()
                     axes[i, j].hist(data[:, j])
+                    axes[i, j].set_xlabel(xlabel)
+                    axes[i, j].set_ylabel(ylabel)
 
         fig.subplots_adjust(hspace=0.3)
         
