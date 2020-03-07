@@ -279,23 +279,26 @@ class LinearRegression(analysis.Analysis):
         return data @ slope + intercept
             
 
-    def r_squared(self, y_pred):
+    def r_squared(self, y_pred, original_y=None):
         '''Computes the R^2 quality of fit statistic
 
         Parameters:
         -----------
         y_pred: ndarray. shape=(num_data_samps,).
             Dependent variable values predicted by the linear regression model
+        original_y: ndarray. shape=(num_data_samps,).
+            Original dependent variable values
 
         Returns:
         -----------
         R2: float.
             The R^2 statistic
         '''
+        y = original_y if original_y is not None else self.y
         residuals = self.compute_residuals(y_pred)
         E = np.linalg.norm(residuals) ** 2 
-        mean = np.mean(self.y)
-        S = np.linalg.norm((self.y - mean), 2) ** 2 
+        mean = np.mean(y)
+        S = np.linalg.norm((y - mean)) ** 2 
 
         return 1 - E/S
 
@@ -315,7 +318,7 @@ class LinearRegression(analysis.Analysis):
         '''
         return self.y - y_pred
 
-    def mean_sse(self, X=None):
+    def mean_sse(self, X=None, poly=None):
         '''Computes the mean sum-of-squares error in the predicted y compared the actual y values.
         See notebook for equation.
 
@@ -324,6 +327,9 @@ class LinearRegression(analysis.Analysis):
         X: ndarray. shape=(anything, num_ind_vars)
             Data to get regression predictions on.
             If None, get predictions based on data used to fit model.
+        poly: int. 
+            If set to a number, indicates the degrees of polynomials. 
+            
 
         Returns:
         -----------
@@ -333,6 +339,10 @@ class LinearRegression(analysis.Analysis):
         '''
         data = X if X is not None else self.A 
         N = data.shape[0]
+
+        if poly is not None: 
+            data = data.reshape(N, 1)
+            data = self.make_polynomial_matrix(X, poly)
 
         y_pred = self.predict(self.slope, self.intercept, data)
         residuals = self.compute_residuals(y_pred)
@@ -374,6 +384,32 @@ class LinearRegression(analysis.Analysis):
         plt.legend(['regression', 'data'])
         plt.title(f'{title}, R2 = {self.R2: .2f}')
 
+    def scatter_poly(self, ind_var, dep_var, title):
+        '''Creates a scatter plot with a regression line to visualize the model fit.
+        Assumes polynomial regression has been already run.
+        
+        Parameters:
+        -----------
+        ind_var: string. Independent variable name
+        dep_var: string. Dependent variable name
+        title: string. Title for the plot
+        '''
+        p = self.A.shape[1] 
+        x, y = super().scatter(ind_var, dep_var)
+        N = y.shape[0]
+
+        fitted_line_x = np.linspace(np.min(x), np.max(x), 100)
+        ATp = self.make_polynomial_matrix(fitted_line_x.reshape([100, 1]), p)
+        fitted_line_y = ATp @ self.slope + self.intercept
+
+        Ap = self.make_polynomial_matrix(y.reshape([N, 1]), p)
+        y_pred = self.predict(self.slope, self.intercept, Ap)
+
+        r2 = self.r_squared(y_pred, y)
+
+        plt.plot(fitted_line_x, fitted_line_y, 'r')
+        plt.legend(['regression', 'data'])
+        plt.title(f'{title}, R2 = {r2: .2f}')
 
 
     def pair_plot(self, data_vars, fig_sz=(12, 12)):
@@ -446,7 +482,13 @@ class LinearRegression(analysis.Analysis):
         NOTE: There should not be a intercept term ("x^0"), the linear regression solver method
         will take care of that.
         '''
-        pass
+        m = np.ones([A.shape[0], p])
+        y = A[:, 0]
+
+        for i in range(p):
+            m[:, i] = y ** (i+1)
+
+        return m 
 
     def poly_regression(self, ind_var, dep_var, p, method='normal'):
         '''Perform polynomial regression — generalizes self.linear_regression to polynomial curves
@@ -480,4 +522,26 @@ class LinearRegression(analysis.Analysis):
                 Example: ['X_p1, X_p2, X_p3'] for a cubic polynomial model
             - You set the instance variable for the polynomial regression degree (self.p)
         '''
-        pass
+        for h in [ind_var, dep_var]:
+            if h not in self.data.get_headers():
+                raise ValueError(f'variable {h} not in headers: {self.data.get_headers()}')
+
+        ind_data = self.data.select_data(ind_var)
+        ind_data = ind_data.reshape([ind_data.shape[0], 1])
+
+        y = self.data.select_data(dep_var)
+        A = self.make_polynomial_matrix(ind_data, p)
+
+
+
+        if method == 'scipy':
+            self.linear_regression_scipy(A, y)
+        elif method == 'normal':
+            self.linear_regression_normal(A, y)
+        elif method == 'qr':
+            A = self.add_homogenous_coord(A)
+            self.linear_regression_qr(A, y)
+        else:
+            raise ValueError(f'method {method} not supported')
+
+
