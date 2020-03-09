@@ -286,7 +286,7 @@ class LinearRegression(analysis.Analysis):
         -----------
         y_pred: ndarray. shape=(num_data_samps,).
             Dependent variable values predicted by the linear regression model
-        original_y: ndarray. shape=(num_data_samps,).
+        original_y: ndarray. shape=(num_data_samps, 1).
             Original dependent variable values
 
         Returns:
@@ -295,14 +295,15 @@ class LinearRegression(analysis.Analysis):
             The R^2 statistic
         '''
         y = original_y if original_y is not None else self.y
-        residuals = self.compute_residuals(y_pred)
-        E = np.linalg.norm(residuals) ** 2 
+        residuals = self.compute_residuals(y_pred, y)
         mean = np.mean(y)
-        S = np.linalg.norm((y - mean)) ** 2 
+        smd = np.linalg.norm(y - mean) ** 2
 
-        return 1 - E/S
+        R2 = 1 - np.linalg.norm(residuals)**2/smd
 
-    def compute_residuals(self, y_pred):
+        return R2 
+
+    def compute_residuals(self, y_pred, original_y=None):
         '''Determines the residual values from the linear regression model
 
         Parameters:
@@ -316,7 +317,8 @@ class LinearRegression(analysis.Analysis):
             Difference between the y values and the ones predicted by the regression model at the 
             data samples
         '''
-        return self.y - y_pred
+        y = original_y if original_y is not None else self.y
+        return y - y_pred
 
     def mean_sse(self, X=None, poly=None):
         '''Computes the mean sum-of-squares error in the predicted y compared the actual y values.
@@ -402,10 +404,10 @@ class LinearRegression(analysis.Analysis):
         ATp = self.make_polynomial_matrix(fitted_line_x.reshape([100, 1]), p)
         fitted_line_y = ATp @ self.slope + self.intercept
 
-        Ap = self.make_polynomial_matrix(y.reshape([N, 1]), p)
+        Ap = self.make_polynomial_matrix(x.reshape([N, 1]), p)
         y_pred = self.predict(self.slope, self.intercept, Ap)
 
-        r2 = self.r_squared(y_pred, y)
+        r2 = self.r_squared(y_pred, y.reshape([N, 1]))
 
         plt.plot(fitted_line_x, fitted_line_y, 'r')
         plt.legend(['regression', 'data'])
