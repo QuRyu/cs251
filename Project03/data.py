@@ -14,7 +14,7 @@ import time
 Types = ['numeric', 'string', 'enum', 'date']
 
 class Data:
-    def __init__(self, filepath=None, headers=None, data=None, header2col=None):
+    def __init__(self, filepath=None, headers=None, types=None, data=None, header2col=None):
         '''Data object constructor
         TODO:
         - Declare/initialize the following instance variables:
@@ -31,10 +31,18 @@ class Data:
             name, ext = os.path.splitext(filepath)
             if ext == '.csv':
                 self.read(filepath)
-        elif headers and data and header2col:
-            self.headers = headers
+        elif headers and data is not None and header2col:
+            if not len(headers) == len(header2col) or not len(headers) == data.shape[1]:
+                raise ValueError(f'it should be len(headers) {len(headers)} == len(header2col) {len(header2col)} == data.shape[1] {data.shape[1]}')
+            self.headers = self.headers_all = headers
+            self.types = self.types_all = ['numeric' for _ in range(len(headers))]
             self.data = data
             self.header2col = header2col
+
+            self.all_data = {'numeric': self.data, 'enum': [], 
+                    'date': [], 'string': []}
+            self.all_header2col = {'numeric': self.header2col, 'enum': {}, 
+                    'date': {}, 'string': {}}
 
     def read(self, filepath):
         '''Read in the .csv file `filepath` in 2D tabular format. Convert to numpy ndarray called
@@ -107,7 +115,6 @@ class Data:
                         'date': self.date_data, 'string': self.str_data}
                 self.all_header2col = {'numeric': self.header2col, 'enum': self.header2col_enum, 
                         'date': self.header2col_date, 'string': self.header2col_str}
-                self.fp = filepath
             except: 
                 e = sys.exc_info()[1]
                 print(str(e))
@@ -124,9 +131,7 @@ class Data:
         '''
 
         str_list = []
-        N, M = self.data.shape
-        str_list.append(f'{self.filepath} ({N}x{M})\n')
-        str_list.append('Headers:\n')
+        str_list.append('Headers\n')
         for header in self.headers:
             str_list.append(header)
             str_list.append(' ')
@@ -138,7 +143,7 @@ class Data:
             str_list.append(' ')
         str_list.append('\n')
 
-        str_list.append(str(self.data[:5, :]))
+        str_list.append(str(self.data))
 
         return ''.join(str_list)
 
@@ -156,6 +161,7 @@ class Data:
         if return_all:
             return self.headers_all
         else:
+            # print(self.headers)
             return self.headers 
 
     def get_types(self, return_all=False):
@@ -333,7 +339,6 @@ class Data:
             rows = range(self.get_num_samples())
         return self.all_data[data_type][np.ix_(rows, indices)]
             
-
     def _read_headers(self, headers):
         headers = list(map(lambda s: s.strip(), headers))
         self.headers = headers

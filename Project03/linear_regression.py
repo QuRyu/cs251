@@ -64,6 +64,18 @@ class LinearRegression(analysis.Analysis):
         self.residuals = self.compute_residuals(predicted)
         self.R2 = self.r_squared(predicted)
 
+    def confidence_intervals(self, x, y, y_pred):
+        N, M = x.shape
+
+        x_mean = np.mean(x, axis=0)
+        SE = np.linalg.norm(y-y_pred)/(np.linalg.norm(x - x_mean, axis=0) * np.sqrt(N-2))
+        SE = SE.reshape([M, 1])
+        lower = SE * (-1.96)
+        upper = SE * (1.96)
+
+        self.slope_ci_low = self.slope + lower 
+        self.slope_ci_up = self.slope + upper
+
     def linear_regression(self, ind_vars, dep_var, method='scipy'):
         '''Performs a linear regression on the independent (predictor) variable(s) `ind_vars`
         and dependent variable `dep_var` using the method `method`.
@@ -107,6 +119,9 @@ class LinearRegression(analysis.Analysis):
             self.linear_regression_qr(A, y)
         else:
             raise ValueError(f'method {method} not supported')
+
+        y_pred = self.predict(self.slope, self.intercept)
+        self.confidence_intervals(x, y, y_pred)
 
     def linear_regression_scipy(self, A, y):
         '''Performs a linear regression using scipy's built-in least squares solver (scipy.linalg.lstsq).
@@ -246,7 +261,7 @@ class LinearRegression(analysis.Analysis):
 
         for i in range(M):
             for j in range(i):
-                Q[:, i] -= (A[:, i].T @ Q[:, j]) * Q[:, j]
+                Q[:, i] = (A[:, i].T @ Q[:, j]) * Q[:, j] - Q[:, i]
             Q[:, i] /= np.linalg.norm(Q[:, i])
 
         R = Q.T @ A 
@@ -320,7 +335,7 @@ class LinearRegression(analysis.Analysis):
         y = original_y if original_y is not None else self.y
         return y - y_pred
 
-    def mean_sse(self, X=None, poly=None):
+    def mean_sse(self, X=None, poly=None, original_y=None):
         '''Computes the mean sum-of-squares error in the predicted y compared the actual y values.
         See notebook for equation.
 
@@ -331,8 +346,8 @@ class LinearRegression(analysis.Analysis):
             If None, get predictions based on data used to fit model.
         poly: int. 
             If set to a number, indicates the degrees of polynomials. 
+        original_y. shape=(anything, 1)
             
-
         Returns:
         -----------
         float. Mean sum-of-squares error
@@ -347,13 +362,13 @@ class LinearRegression(analysis.Analysis):
             data = self.make_polynomial_matrix(X, poly)
 
         y_pred = self.predict(self.slope, self.intercept, data)
-        residuals = self.compute_residuals(y_pred)
+        residuals = self.compute_residuals(y_pred, original_y)
         msse = (np.linalg.norm(residuals) ** 2) / N
 
         return msse 
 
 
-    def scatter(self, ind_var, dep_var, title, ind_var_index=0):
+    def scatter(self, ind_var, dep_var, title, ind_var_index=0, CI=False):
         '''Creates a scatter plot with a regression line to visualize the model fit.
         Assumes linear regression has been already run.
         
@@ -377,13 +392,31 @@ class LinearRegression(analysis.Analysis):
         - Make sure that your plot has a title (with R^2 value in it)
         '''
         x, y = super().scatter(ind_var, dep_var) 
-        slope = self.slope[ind_var_index][0] 
+
+        N = y.shape[0]
+        y_pred = self.predict(self.slope, self.intercept, y.reshape([N, 1]))
+        r2 = self.r_squared(y_pred, y.reshape([N, 1]))
 
         fitted_line_x = np.linspace(np.min(x), np.max(x), 100)
-        fitted_line_y = fitted_line_x * slope + self.intercept
 
-        plt.plot(fitted_line_x, fitted_line_y, 'r')
-        plt.legend(['regression', 'data'])
+        if not CI:
+            slope = self.slope[ind_var_index][0] 
+
+            fitted_line_y = fitted_line_x * slope + self.intercept
+
+
+            plt.plot(fitted_line_x, fitted_line_y, 'r')
+            plt.legend(['regression', 'data'])
+        else:
+            CI_lower = self.slope_ci_low[ind_var_index][0]
+            CI_upper = self.slope_ci_up[ind_var_index][0]
+
+            fitted_line_y_lower = fitted_line_x * CI_lower + self.intercept
+            fitted_line_y_upper = fitted_line_x * CI_upper + self.intercept
+
+            plt.fill_between(fitted_line_x, fitted_line_y_lower, fitted_line_y_upper, facecolor=(1, 0, 0, 0.2))
+
+
         plt.title(f'{title}, R2 = {self.R2: .2f}')
 
     def scatter_poly(self, ind_var, dep_var, title):
