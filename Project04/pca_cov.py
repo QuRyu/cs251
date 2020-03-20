@@ -83,7 +83,12 @@ class PCA_COV:
 
         NOTE: You should do this wihout any loops
         '''
-        pass
+        N = data.shape[0]
+        mean = np.mean(data, axis=0) 
+        A_centered = data - mean 
+        cov = (A_centered.T @ A_centered) / (N-1)
+
+        return cov 
 
     def compute_prop_var(self, e_vals):
         '''Computes the proportion variance accounted for by the principal components (PCs).
@@ -97,7 +102,13 @@ class PCA_COV:
         Python list. len = num_pcs
             Proportion variance accounted for by the PCs
         '''
-        pass
+        self.e_vals = e_vals
+
+        total = np.sum(e_vals)
+        result = [] 
+        for i in e_vals:
+            result.append(i/total)
+        return result 
 
     def compute_cum_var(self, prop_var):
         '''Computes the cumulative variance accounted for by the principal components (PCs).
@@ -113,7 +124,12 @@ class PCA_COV:
         Python list. len = num_pcs
             Cumulative variance accounted for by the PCs
         '''
-        pass
+        v_sum = 0 
+        result = [] 
+        for i in prop_var:
+            v_sum += i 
+            result.append(v_sum)
+        return result
 
     def pca(self, vars, normalize=False):
         '''Performs PCA on the data variables `vars`
@@ -136,7 +152,25 @@ class PCA_COV:
         - Make sure to compute everything needed to set all instance variables defined in constructor,
         except for self.A_proj (this will happen later).
         '''
-        pass
+        self.A = A = self.data[vars] 
+        self.vars = vars 
+
+        if normalize:
+            mins, maxes = np.min(A, axis=0), np.max(A, axis=0)
+            A = (A - mins) / (maxes - mins)
+
+        cov = self.covariance_matrix(A)
+        e_val, e_vec = np.linalg.eig(cov)
+
+        
+        e = list(zip(e_val, e_vec))
+        e.sort(key=lambda x:x[0], reverse=True)
+        e_val, e_vec = np.array([val[0] for val in e]), np.array([val[1] for val in e])
+        self.prop_var = self.compute_prop_var(e_val)
+        self.cum_var = self.compute_cum_var(self.prop_var)
+
+        self.e_vals = e_val
+        self.e_vecs = e_vec
 
     def elbow_plot(self, num_pcs_to_keep=None):
         '''Plots a curve of the cumulative variance accounted for by the top `num_pcs_to_keep` PCs.
@@ -152,7 +186,18 @@ class PCA_COV:
         NOTE: Reminder to create useful x and y axis labels.
         NOTE: Don't write plt.show() in this method
         '''
-        pass
+        N = num_pcs_to_keep if num_pcs_to_keep is not None else self.e_vals.shape[0]
+
+        x = np.linspace(0, N, N+1)
+        y = self.cum_var.copy()
+        y.insert(0, 0)
+
+        fig, ax = plt.subplots()
+        ax.plot(x, y, marker='o')
+        ax.set_xlabel('PC')
+        ax.set_ylabel('Cumulative Variance')
+        ax.set_label('Elbow plot')
+        ax.set_ylim((0, 1.05))
 
     def pca_project(self, pcs_to_keep):
         '''Project the data onto `pcs_to_keep` PCs (not necessarily contiguous)
@@ -174,7 +219,10 @@ class PCA_COV:
 
         NOTE: This method should set the variable `self.A_proj`
         '''
-        pass
+        e_vecs = self.e_vecs[:, pcs_to_keep]
+        self.A_proj = self.A @ e_vecs
+
+        return self.A_proj.values 
 
     def loading_plot(self):
         '''Create a loading plot of the top 2 PC eigenvectors
@@ -189,7 +237,28 @@ class PCA_COV:
 
         NOTE: Don't write plt.show() in this method
         '''
-        pass
+        vecs = self.e_vecs[:, [1, 2]]
+        x_min, y_min = np.min(vecs, axis=0)
+        x_max, y_max = np.max(vecs, axis=0)
+
+        lim_f = lambda a, b: abs(a) if abs(a) > abs(b) else abs(b)
+        y_lim = lim_f(y_min, y_max)
+        x_lim = lim_f(x_min, x_max)
+
+        fig, ax = plt.subplots()
+
+        for i, (x, y) in enumerate(vecs):
+            x_start, x_end = min(0, x), max(0, x)
+            y_start, y_end = min(0, y), max(0, y)
+            m = (y_end - y_start)/(x_end - x_start)
+
+            line_x = np.linspace(x_start, x_end, 100)
+            line_y = line_x * m 
+            ax.plot(line_x, line_y)
+            ax.annotate(self.vars[i], xy=(x, y))
+
+        ax.set_xlim(-x_lim, x_lim)
+        ax.set_ylim(-y_lim, y_lim)
 
     def pca_then_project_back(self, top_k):
         '''Project the data into PCA space (on `top_k` PCs) then project it back to the data space
@@ -206,4 +275,10 @@ class PCA_COV:
         - Project the data on the `top_k` PCs (assume PCA has already been performed).
         - Project this PCA-transformed data back to the original data space
         '''
-        pass
+        e_vecs = self.e_vecs[:, [i for i in range(top_k)]]
+
+        A_back = self.A_proj @ e_vecs.T
+
+        return A_back 
+
+
