@@ -143,7 +143,7 @@ class Data:
             str_list.append(' ')
         str_list.append('\n')
 
-        str_list.append(str(self.data))
+        str_list.append(str(self.data[:5]))
 
         return ''.join(str_list)
 
