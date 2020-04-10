@@ -1,6 +1,6 @@
 '''pca_cov.py
 Performs principal component analysis using the covariance matrix approach
-YOUR NAME HERE
+Qingbo Liu
 CS 251 Data Analysis Visualization, Spring 2020
 '''
 import numpy as np
@@ -152,12 +152,15 @@ class PCA_COV:
         - Make sure to compute everything needed to set all instance variables defined in constructor,
         except for self.A_proj (this will happen later).
         '''
-        self.A = A = self.data[vars] 
+        self.A = A = self.data[vars].values 
         self.vars = vars 
 
         if normalize:
             mins, maxes = np.min(A, axis=0), np.max(A, axis=0)
             A = (A - mins) / (maxes - mins)
+        
+        # center the data 
+        A = A - np.mean(A, axis=0)
 
         cov = self.covariance_matrix(A)
         e_val, e_vec = np.linalg.eig(cov)
@@ -189,11 +192,12 @@ class PCA_COV:
         N = num_pcs_to_keep if num_pcs_to_keep is not None else self.e_vals.shape[0]
 
         x = np.linspace(0, N, N+1)
-        y = self.cum_var.copy()
+        y = self.cum_var.copy()[:N]
         y.insert(0, 0)
 
         fig, ax = plt.subplots()
-        ax.plot(x, y, marker='o')
+        # ax.plot(x, y, marker='o')
+        ax.plot(x, y)
         ax.set_xlabel('PC')
         ax.set_ylabel('Cumulative Variance')
         ax.set_label('Elbow plot')
@@ -222,7 +226,7 @@ class PCA_COV:
         e_vecs = self.e_vecs[:, pcs_to_keep]
         self.A_proj = self.A @ e_vecs
 
-        return self.A_proj.values 
+        return self.A_proj
 
     def loading_plot(self):
         '''Create a loading plot of the top 2 PC eigenvectors
@@ -277,7 +281,8 @@ class PCA_COV:
         '''
         e_vecs = self.e_vecs[:, [i for i in range(top_k)]]
 
-        A_back = self.A_proj @ e_vecs.T
+        A_proj = self.A @ e_vecs
+        A_back = A_proj @ e_vecs.T
 
         return A_back 
 
