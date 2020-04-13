@@ -1,10 +1,12 @@
 '''kmeans.py
 Performs K-Means clustering
-YOUR NAME HERE
+Qingbo Liu
 CS 251 Data Analysis Visualization, Spring 2020
 '''
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator 
+from palettable import colorbrewer 
 
 
 class KMeans():
@@ -118,7 +120,7 @@ class KMeans():
         NOTE: Implement without any for loops (you will thank yourself later since you will wait
         only a small fraction of the time for your code to stop running)
         '''
-        pass
+        return np.apply_along_axis(self.dist_pt_to_pt, 1, centroids, pt)
 
     def initialize(self, k):
         '''Initializes K-means by setting the initial centroids (means) to K unique randomly
@@ -134,7 +136,7 @@ class KMeans():
 
         NOTE: Can be implemented without any for loops
         '''
-        pass
+        return np.take(self.data, np.random.randint(0, self.num_samps, k), axis=0)
 
     def initialize_plusplus(self, k):
         '''Initializes K-means by setting the initial centroids (means) according to the K-means++
@@ -158,7 +160,28 @@ class KMeans():
             - Select the i-th centroid by randomly choosing a data sample according to the probability
             distribution.
         '''
-        pass
+        centroid_pos = [] 
+        pos = np.random.randint(0, self.num_samps, 1)
+        centroid_pos.append(pos)
+        centroids = self.data[pos].reshape(1, self.num_features)
+
+        for i in range(1, k): 
+            dist = np.zeros([self.num_samps, i])
+
+            for j in range(i):
+                dist[:, j] = np.apply_along_axis(self.dist_pt_to_pt, 1, self.data, centroids[j])
+
+            dist = np.min(dist, axis=1)
+            dist = np.delete(dist, centroid_pos)
+
+            dist = dist * dist 
+            dist = dist / np.sum(dist)
+
+            pos = np.random.choice([i for i in range(self.num_samps) if i not in centroid_pos], p=dist)
+            centroid_pos.append(pos)
+            centroids = np.vstack([centroids, self.data[pos]])
+
+        return np.array(centroids)
 
     def cluster(self, k=2, tol=1e-5, max_iter=1000, init_method='random', verbose=False):
         '''Performs K-means clustering on the data
@@ -184,7 +207,31 @@ class KMeans():
         (All instance variables defined in constructor should be populated with meaningful values)
         - Print out total number of iterations K-means ran for
         '''
-        pass
+        self.k = k 
+        n_iter = 0 
+
+        if init_method == 'random':
+            centroids = self.initialize(k)
+        elif init_method == 'kmeans++':
+            centroids = self.initialize_plusplus(k)
+        else:
+            raise ArgumentError(f'initialization method {init_method} not supported')
+
+        while n_iter <= max_iter:
+            labels = self.update_labels(centroids)
+            centroids, diff = self.update_centroids(k, labels, centroids)
+
+            n_iter += 1 
+
+            if verbose:
+                print(f'current iteration {n_iter}, max diff {np.max(diff)}')
+            if np.max(diff) < tol:
+                break
+
+        if verbose: 
+            print(f'total number of iterations: {n_iter}')
+        self.inertia = self.compute_inertia()
+        return self.inertia, n_iter
 
     def cluster_batch(self, k=2, n_iter=1, init_method='random', verbose=False):
         '''Run K-means multiple times, each time with different initial conditions.
@@ -202,7 +249,25 @@ class KMeans():
         max_iter: int. Make sure that K-means does not run more than `max_iter` iterations.
         verbose: boolean. Print out debug information if set to True.
         '''
-        pass
+        best_inertia = float('inf')
+        centroids = None 
+        data_centroid_labels = None 
+
+        total_iter = 0
+        for i in range(n_iter):
+            inertia, n = self.cluster(k, init_method=init_method, verbose=verbose)
+            total_iter += n 
+
+            if inertia < best_inertia:
+                centroids = self.centroids
+                data_centroid_labels = self.data_centroid_labels
+                best_inertia = inertia
+
+        self.centroids = centroids
+        self.data_centroid_labels = data_centroid_labels
+        self.inertia = best_inertia
+
+        return total_iter / n_iter
 
     def update_labels(self, centroids):
         '''Assigns each data sample to the nearest centroid
@@ -218,7 +283,13 @@ class KMeans():
         Example: If we have 3 clusters and we compute distances to data sample i: [0.1, 0.5, 0.05]
         labels[i] is 2. The entire labels array may look something like this: [0, 2, 1, 1, 0, ...]
         '''
-        pass
+        self.centroids = centroids
+
+        def idx(x):
+            return np.argmin(self.dist_pt_to_centroids(x, centroids))
+        self.data_centroid_labels = np.apply_along_axis(idx, 1, self.data)
+
+        return self.data_centroid_labels
 
     def update_centroids(self, k, data_centroid_labels, prev_centroids):
         '''Computes each of the K centroids (means) based on the data assigned to each cluster
@@ -238,7 +309,15 @@ class KMeans():
         centroid_diff. ndarray. shape=(k, self.num_features).
             Difference between current and previous centroid values
         '''
-        pass
+        new_centroids = np.zeros([k, self.num_features])
+        for i in range(k):
+            data = self.data[data_centroid_labels == i]
+            new_centroids[i] = np.average(data, axis=0)
+
+        centroid_diff = new_centroids - prev_centroids
+        self.centroids = new_centroids
+
+        return new_centroids, centroid_diff
 
     def compute_inertia(self):
         '''Mean squared distance between every data sample and its assigned (nearest) centroid
@@ -251,7 +330,12 @@ class KMeans():
         -----------
         float. The average squared distance between every data sample and its assigned cluster centroid.
         '''
-        pass
+        dst = 0 
+        for i in range(self.num_samps):
+            centroid = self.centroids[self.data_centroid_labels[i]]
+            diff = centroid - self.data[i] 
+            dst += np.sum(diff * diff)
+        return dst / self.num_samps
 
     def plot_clusters(self):
         '''Creates a scatter plot of the data color-coded by cluster assignment.
@@ -266,7 +350,13 @@ class KMeans():
             (LA Section): You should use a palette Colorbrewer2 palette. Pick one with a generous
             number of colors so that you don't run out if k is large (e.g. 10).
         '''
-        pass
+        fig, ax = plt.subplots()
+        ax.scatter(self.data[:, 0], self.data[:, 1], c=self.data_centroid_labels,
+                cmap=colorbrewer.qualitative.Set3_12.mpl_colormap)
+        ax.scatter(self.centroids[:, 0], self.centroids[:, 1], marker='*')
+        ax.set_title('Clusters')
+
+        
 
     def elbow_plot(self, max_k):
         '''Makes an elbow plot: cluster number (k) on x axis, inertia on y axis.
@@ -279,7 +369,19 @@ class KMeans():
         - Run k-means with k=1,2,...,max_k-1, record the inertia.
         - Make the plot with appropriate x label, and y label, x tick marks.
         '''
-        pass
+        inertia = [] 
+        for i in range(1, max_k):
+            ita, n_iter = self.cluster(i)
+            inertia.append(ita)
+
+        x = np.linspace(1, max_k-1, max_k-1)
+
+        fig, ax = plt.subplots()
+        ax.plot(x, inertia)
+        ax.set_xlabel('k clusters')
+        ax.set_ylabel('Inertia')
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+
 
     def replace_color_with_centroid(self):
         '''Replace each RGB pixel in self.data (flattened image) with the closest centroid value.
@@ -293,4 +395,8 @@ class KMeans():
         -----------
         None
         '''
-        pass
+        data = self.data.copy()
+        centroids = self.centroids.astype(np.uint8)
+        for i in range(self.k):
+            data[self.data_centroid_labels == i] = centroids[i] 
+        self.data = data 
