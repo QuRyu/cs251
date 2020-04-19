@@ -371,7 +371,7 @@ class KMeans():
         '''
         inertia = [] 
         for i in range(1, max_k):
-            ita, n_iter = self.cluster(i)
+            ita, n_iter = self.cluster(i, init_method='kmeans++')
             inertia.append(ita)
 
         x = np.linspace(1, max_k-1, max_k-1)
