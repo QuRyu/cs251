@@ -1,6 +1,6 @@
 '''em.py
 Cluster data using the Expectation-Maximization (EM) algorithm with Gaussians
-YOUR NAME HERE
+Qingbo Liu
 CS 251 Data Analysis Visualization, Spring 2020
 '''
 import numpy as np
@@ -56,7 +56,16 @@ class EM():
         ndarray. shape=(num_samps,)
             Multivariate gaussian evaluated at the data samples `pts`
         '''
-        pass
+        N, M = pts.shape
+
+        coef = np.power(np.sqrt(2 * np.pi), M)
+        det = np.sqrt(np.linalg.det(sigma))
+            
+        exp = lambda x: np.exp(-0.5 * (x - mean) @ np.linalg.inv(sigma) @ (x - mean).T)
+
+        f = lambda x : exp(x) / (coef * det)
+
+        return np.apply_along_axis(f, 1, pts).reshape(N,)
 
     def gaussian_scipy(self, pts, mean, sigma):
         '''(Non-LA section)
@@ -84,7 +93,7 @@ class EM():
         '''
         pass
 
-    def initalize(self, k):
+    def initialize(self, k, init_method='random'):
         '''Initialize all variables used in the EM algorithm.
 
         Parameters:
@@ -109,7 +118,103 @@ class EM():
         is equally likely.
             shape=(k,)
         '''
-        pass
+        self.k = k 
+        self.loglikelihood_hist = [] 
+
+        if init_method == 'random': 
+            self.centroids = np.take(self.data, 
+                    np.random.randint(0, self.num_samps, k), axis=0)
+        elif init_method == 'kmeans++': 
+            self.centroids = self.initialize_plusplus(k)
+        else:
+            print(f'initialization method {init_method} not supported')
+
+        self.cov_mats = np.array([np.identity(self.num_features) for i in range(k)])
+        self.responsibilities = np.ones([k, self.num_samps])
+        self.pi = np.ones(k) / np.sum(np.ones(k))
+
+    def dist_pt_to_pt(self, pt_1, pt_2):
+        '''Compute the Euclidean distance between data samples `pt_1` and `pt_2`
+
+        Parameters:
+        -----------
+        pt_1: ndarray. shape=(num_features,)
+        pt_2: ndarray. shape=(num_features,)
+
+        Returns:
+        -----------
+        float. Euclidean distance between `pt_1` and `pt_2`.
+
+        NOTE: Implement without any for loops (you will thank yourself later since you will wait
+        only a small fraction of the time for your code to stop running)
+        '''
+        diff = pt_1 - pt_2 
+        return np.sqrt(np.sum(diff * diff))
+
+    def dist_pt_to_centroids(self, pt, centroids):
+        '''Compute the Euclidean distance between data sample `pt` and and all the cluster centroids
+        self.centroids
+
+        Parameters:
+        -----------
+        pt: ndarray. shape=(num_features,)
+        centroids: ndarray. shape=(C, num_features)
+            C centroids, where C is an int.
+
+        Returns:
+        -----------
+        ndarray. shape=(C,).
+            distance between pt and each of the C centroids in `centroids`.
+
+        NOTE: Implement without any for loops (you will thank yourself later since you will wait
+        only a small fraction of the time for your code to stop running)
+        '''
+        return np.apply_along_axis(self.dist_pt_to_pt, 1, centroids, pt)
+
+    def initialize_plusplus(self, k):
+        '''Initializes K-means by setting the initial centroids (means) according to the K-means++
+        algorithm
+
+        (LA section only)
+
+        Parameters:
+        -----------
+        k: int. Number of clusters
+
+        Returns:
+        -----------
+        ndarray. shape=(k, self.num_features). Initial centroids for the k clusters.
+
+        TODO:
+        - Set initial centroid (i = 0) to a random data sample.
+        - To pick the i-th centroid (i > 0)
+            - Compute the distance between all data samples and i-1 centroids already initialized.
+            - Create the distance-based probability distribution (see notebook for equation).
+            - Select the i-th centroid by randomly choosing a data sample according to the probability
+            distribution.
+        '''
+        centroid_pos = [] 
+        pos = np.random.randint(0, self.num_samps, 1)
+        centroid_pos.append(pos)
+        centroids = self.data[pos].reshape(1, self.num_features)
+
+        for i in range(1, k): 
+            dist = np.zeros([self.num_samps, i])
+
+            for j in range(i):
+                dist[:, j] = np.apply_along_axis(self.dist_pt_to_pt, 1, self.data, centroids[j])
+
+            dist = np.min(dist, axis=1)
+            dist = np.delete(dist, centroid_pos)
+
+            dist = dist * dist 
+            dist = dist / np.sum(dist)
+
+            pos = np.random.choice([i for i in range(self.num_samps) if i not in centroid_pos], p=dist)
+            centroid_pos.append(pos)
+            centroids = np.vstack([centroids, self.data[pos]])
+
+        return np.array(centroids)
 
     def e_step(self):
         '''Expectation (E) step in the EM algorithm.
@@ -128,7 +233,13 @@ class EM():
         self.responsibilities: ndarray. shape=(k, num_samps)
             The probability that each data point belongs to each of the k clusters.
         '''
-        pass
+        for i in range(self.k):
+            cov = self.cov_mats[i]
+            mean = self.centroids[i]
+            self.responsibilities[i, :] = self.pi[i] * self.gaussian(self.data, mean, cov)
+
+        self.responsibilities /= np.sum(self.responsibilities, axis=0)
+        return self.responsibilities
 
     def m_step(self):
         '''Maximization (M) step in the EM algorithm.
@@ -160,7 +271,24 @@ class EM():
         self.pi: ndarray. shape=(k,)
             Proportion of data points belonging to each cluster.
         '''
-        pass
+        self.pi = np.sum(self.responsibilities, axis=1) / self.num_samps
+
+        def cov_helper(x):
+            w = x[-1]
+            d = x[:-1].reshape(1, self.num_features)
+            return w * (d - mean).T @ (d - mean)
+
+        for i in range(self.k):
+            Rc = np.sum(self.responsibilities[i])
+            w = self.responsibilities[i].reshape(1, self.num_samps)
+            self.centroids[i] = np.sum(w @ self.data, axis=0) / Rc
+            mean = self.centroids[i]
+
+            cov = np.apply_along_axis(cov_helper, 1, np.column_stack([self.data, w.T]))
+            self.cov_mats[i] = np.sum(cov, axis=0) / Rc
+
+        return self.centroids, self.cov_mats, self.pi
+        
 
     def log_likelihood(self):
         '''Compute the sum of the log of the Gaussian probability of each data sample in each cluster
@@ -177,9 +305,16 @@ class EM():
         NOTE: Remember to weight each cluster's Gaussian probabilities by the proportion of data
         samples that belong to each cluster (pi).
         '''
-        pass
+        def helper(x):
+            g_sum = np.apply_along_axis(
+                    lambda i: self.pi[i] * self.gaussian(x.reshape(1, self.num_features), self.centroids[i], self.cov_mats[i]),
+                    1, np.arange(self.k).reshape(self.k, 1))
+            return np.log(np.sum(g_sum))
+        
+        return np.sum(np.apply_along_axis(helper, 1, self.data))
 
-    def cluster(self, k, max_iter=100, stop_tol=1e-3, verbose=False, animate=False):
+
+    def cluster(self, k, max_iter=100, stop_tol=1e-3, verbose=False, animate=False, init_method='random'):
         '''Main method used to cluster data using the EM algorithm
         Perform E and M steps until the change in the loglikelihood from last step to the current
         step <= `stop_tol` OR we reach the maximum number of allowed iterations (`max_iter`).
@@ -203,7 +338,36 @@ class EM():
         NOTE: The log likelihood is a NEGATIVE float, and should increase (approach 0) if things are
             working well.
         '''
-        pass
+        self.initialize(k, init_method)
+
+        prev_ll = 0
+        n_iter = 0 
+
+        while n_iter < max_iter:
+            n_iter += 1 
+            self.e_step()
+            self.m_step()
+
+            ll = self.log_likelihood()
+
+            self.loglikelihood_hist.append(ll)
+            if abs(ll - prev_ll) < stop_tol:
+                break
+
+            if animate:
+                clear_output(wait=True)
+                self.plot_clusters(self.data)
+                plt.pause(0.1)
+
+            if verbose: 
+                print(f'current number of iterations {n_iter}, current ll {ll}, previous ll {prev_ll}, diff in ll {abs(prev_ll - ll)}')
+
+            prev_ll = ll
+
+
+        print(f'total number of iterations: {n_iter}')
+
+
 
     def find_outliers(self, thres=0.05):
         '''Find outliers in a dataset using clustering by EM algorithm
@@ -223,7 +387,15 @@ class EM():
                 For above example: data samples with indices 20 and 26 are outliers according to
                 cluster 2.
         '''
-        pass
+        cluster_assignment = np.argmax(self.responsibilities, axis=0) 
+        result = [] 
+        for i in range(self.k):
+            indices = np.where(cluster_assignment == i)[0]
+            data = self.data[indices]
+            probs = self.gaussian(data, self.centroids[i], self.cov_mats[i])
+            result.append(indices[probs < thres])
+
+        return result 
 
     def estimate_log_probs(self, xy_points):
         '''Used for plotting the clusters.
@@ -278,3 +450,20 @@ class EM():
         plt.contourf(x_samps, y_samps, probs, cmap='viridis')
         if show:
             plt.show()
+
+    def elbow_plot(self):
+        ''' Plot the log likelihood history recored as data is being clustered. 
+
+        Assume `cluster` has been run. 
+        '''
+        N = len(self.loglikelihood_hist)
+
+        x = np.linspace(1, N, N)
+        y = self.loglikelihood_hist.copy()
+
+        fig, ax = plt.subplots()
+        ax.plot(x, y)
+        ax.set_title('Elbow plot')
+        ax.set_xlabel('Number of iterations')
+        ax.set_ylabel('Log likelihood')
+
