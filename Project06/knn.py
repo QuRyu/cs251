@@ -6,7 +6,7 @@ CS 251 Data Analysis Visualization, Spring 2020
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
-#from palettable import cartocolors
+from palettable import cartocolors
 
 
 class KNN:
@@ -39,7 +39,8 @@ class KNN:
         - Set the `exemplars` and `classes` instance variables such that the classifier memorizes
         the training data.
         '''
-        pass
+        self.exemplars = data 
+        self.classes = y 
     
     def predict(self, data, k):
         '''Use the trained KNN classifier to predict the class label of each test sample in `data`.
@@ -65,7 +66,14 @@ class KNN:
         to which class.
         - The predicted class of the test sample is the majority vote.
         '''
-        pass
+        def dist_f(x, exemp):
+            dist = np.sum((exemp - x) * (exemp - x), axis=1)
+            ind = np.argpartition(dist, k)[:k]
+            votes = self.classes[ind]
+            values, counts = np.unique(votes, return_counts=True)
+            return values[np.argmax(counts)]
+
+        return np.apply_along_axis(dist_f, 1, data, self.exemplars)
 
     def accuracy(self, y, y_pred):
         '''Computes accuracy based on percent correct: Proportion of predicted class labels `y_pred`
@@ -84,7 +92,10 @@ class KNN:
 
         NOTE: Can be done without any loops
         '''
-        pass
+        n = np.count_nonzero(y == y_pred)
+        N = y.shape[0] 
+
+        return n / N 
 
     def plot_predictions(self, k, n_sample_pts):
         '''Paints the data space in colors corresponding to which class the classifier would
@@ -129,7 +140,16 @@ class KNN:
         to specify your discrete ColorBrewer color palette.
         - Add a colorbar to your plot
         '''
-        pass
+        samp_vec = np.linspace(-40, 40, n_sample_pts)
+        x, y = np.meshgrid(samp_vec, samp_vec)
+
+        X = np.column_stack([x.flatten(), y.flatten()])
+        y_pred = self.predict(X, k).reshape(n_sample_pts, n_sample_pts)
+
+        color_list = ListedColormap(cartocolors.qualitative.Safe_4.mpl_colors)
+        fig, ax = plt.subplots()
+        pos = ax.pcolormesh(x, y, y_pred, cmap=color_list)
+        fig.colorbar(pos, ax=ax)
 
     def confusion_matrix(self, y, y_pred):
         '''Create a confusion matrix based on the ground truth class labels (`y`) and those predicted
