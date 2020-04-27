@@ -1,11 +1,13 @@
 '''email_preprocessor.py
 Preprocess Enron email dataset into features for use in supervised learning algorithms
-YOUR NAME HERE
+Qingbo Liu
 CS 251 Data Analysis Visualization, Spring 2020
 '''
 import re
 import os
 import numpy as np
+from collections import Counter 
+import math 
 
 
 def tokenize_words(text):
@@ -50,7 +52,22 @@ def count_words(email_path='data/enron'):
     (spam can contain weird things!). On this dataset, this can be fixed by telling Python to assume
     each file is encoded using 'latin-1': encoding='latin-1'
     '''
-    pass
+    files = [email_path]
+    word_freq = {}
+    n_files = 0
+
+    for dirName, subdirList, fileList in os.walk(email_path):
+        for f in fileList: 
+            if f == '.DS_Store':
+                continue 
+
+            n_files += 1 
+            fd = open(os.path.join(dirName, f), encoding='latin-1')
+            words = tokenize_words(fd.read())
+            for w in words: 
+                word_freq[w] = word_freq.get(w, 0) + 1 
+
+    return word_freq, n_files
 
 
 def find_top_words(word_freq, num_features=200):
@@ -67,7 +84,8 @@ def find_top_words(word_freq, num_features=200):
     top_words: Python list. Top `num_features` words in high-to-low count order.
     counts: Python list. Counts of the `num_features` words in high-to-low count order.
     '''
-    pass
+    top = Counter(word_freq).most_common(num_features)
+    return map(list, zip(*top))
 
 
 def make_feature_vectors(top_words, num_emails, email_path='data/enron'):
@@ -96,7 +114,35 @@ def make_feature_vectors(top_words, num_emails, email_path='data/enron'):
     HINTS:
     - Start with your code in `count_words` and modify as needed.
     '''
-    pass
+    W = len(top_words)
+
+    feats = np.zeros([num_emails, W])
+    y = np.zeros([num_emails])
+
+    idx = 0 
+    word_idx = {} 
+
+    for i, w in enumerate(top_words):
+        word_idx[w] = i 
+
+    for dirName, subdirList, fileList in os.walk(email_path):
+        _, tail = os.path.split(dirName)
+
+        for f in fileList:
+            if f == '.DS_Store':
+                continue 
+
+            fd = open(os.path.join(dirName, f), encoding='latin-1')
+            words = tokenize_words(fd.read())
+            for w in words: 
+                if w in word_idx:
+                    pos = word_idx[w]
+                    feats[idx, pos] += 1 
+
+            y[idx] = 0 if tail == 'spam' else 1 
+            idx += 1 
+
+    return feats, y 
 
 
 def make_train_test_sets(features, y, test_prop=0.2, shuffle=True):
@@ -140,7 +186,23 @@ def make_train_test_sets(features, y, test_prop=0.2, shuffle=True):
     HINTS:
     - If you're shuffling, work with indices rather than actual values.
     '''
-    pass
+    N, W = features.shape 
+    indices = np.arange(N)
+
+    if shuffle:
+        np.random.default_rng().shuffle(indices)
+
+    train_prop = math.ceil((1- test_prop) * N)
+    inds_train = indices[:train_prop]
+    x_train = features[inds_train]
+    y_train = y[inds_train]
+
+    inds_test = indices[train_prop:]
+    x_test = features[inds_test]
+    y_test = y[inds_test]
+
+    return x_train, y_train, inds_train, x_test, y_test, inds_test
+        
 
 def retrieve_emails(inds, email_path='data/enron'):
     '''Obtain the text of emails at the indices `inds` in the dataset.
